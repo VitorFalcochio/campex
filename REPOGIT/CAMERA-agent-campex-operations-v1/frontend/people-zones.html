@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Campex People & Zones</title>
+    <script>document.write('<base href="'+((location.protocol==='file:'||location.pathname.endsWith('.html')||location.pathname.startsWith('/static/')||/(^|\/)(operation\/)?frontend\/?$/.test(location.pathname))?'./':'/static/')+'">');</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=campex-people-zones-v1" onerror="this.onerror=null;this.href='styles.css'" />
+  </head>
+  <body class="campex-dashboard">
+    <aside class="cx-sidebar">
+      <div class="cx-sidebar-top">
+        <a class="cx-logo" href="/dashboard" aria-label="Campex">
+          <img src="campex-logo-oficial.png" alt="Campex" onerror="this.onerror=null;this.src='campex-logo-oficial.png'" />
+          <strong>Campex</strong>
+        </a>
+        <button class="cx-collapse" type="button" aria-label="Recolher sidebar">‹</button>
+      </div>
+      <nav class="cx-nav cx-nav-grouped" aria-label="Navegação principal">
+        <small>OPERAÇÃO</small>
+        <a href="/dashboard"><span class="cx-nav-icon" data-icon="home"></span>Home</a>
+        <a class="active" href="/people-zones"><span class="cx-nav-icon" data-icon="overview"></span>Pessoas e Zonas</a>
+        <a href="/live-grid"><span class="cx-nav-icon" data-icon="camera"></span>Grade ao vivo</a>
+        <a href="/events"><span class="cx-nav-icon" data-icon="events"></span>Eventos</a>
+        <hr />
+        <small>PLATAFORMA</small>
+        <a href="/settings/cameras"><span class="cx-nav-icon" data-icon="settings"></span>Configurações</a>
+      </nav>
+    </aside>
+    <main class="cx-main app-content">
+      <header class="cx-header cx-topbar">
+        <div>
+          <p>Campex People & Zones V1</p>
+          <h1>Pessoas e Zonas</h1>
+        </div>
+        <div class="cx-header-tools">
+          <span id="peopleZonesUpdated" class="badge">Atualizando</span>
+          <button id="generateTestEvent" type="button">Gerar ocorrência de teste</button>
+          <a class="button-link" href="/live-grid">Abrir grade</a>
+        </div>
+      </header>
+      <section class="cx-live-grid-page">
+        <div class="cx-panel-head">
+          <div>
+            <h2>Ocupação operacional</h2>
+            <p>Postos, zonas, eventos e evidências calculados a partir das câmeras configuradas.</p>
+          </div>
+        </div>
+        <div id="peopleZonesKpis" class="cx-resource-grid"></div>
+        <div class="cx-home-lower-grid">
+          <section class="cx-home-section">
+            <div class="cx-panel-head">
+              <div>
+                <h2>Postos de trabalho</h2>
+                <p>Ocupação atual e ausências confirmadas.</p>
+              </div>
+            </div>
+            <div id="workstationList" class="cx-camera-status-list"></div>
+          </section>
+          <section class="cx-home-section">
+            <div class="cx-panel-head">
+              <div>
+                <h2>Eventos ativos</h2>
+                <p>Zonas que exigem atenção agora.</p>
+              </div>
+            </div>
+            <div id="activeZoneEvents" class="cx-camera-status-list"></div>
+          </section>
+        </div>
+        <section class="cx-home-section">
+          <div class="cx-panel-head">
+            <div>
+              <h2>Histórico recente</h2>
+              <p>Eventos padronizados do catálogo People & Zones.</p>
+            </div>
+          </div>
+          <div class="cx-table-wrap">
+            <table class="cx-table">
+              <thead>
+                <tr>
+                  <th>Horário</th>
+                  <th>Evento</th>
+                  <th>Câmera</th>
+                  <th>Zona</th>
+                  <th>Duração</th>
+                  <th>Status</th>
+                  <th>Evidência</th>
+                </tr>
+              </thead>
+              <tbody id="peopleZonesEvents"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="shell.js" onerror="this.onerror=null;this.src='shell.js'"></script>
+    <script src="people-zones.js" onerror="this.onerror=null;this.src='people-zones.js'"></script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+[Unit]
+Description=Visual Operations Edge Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/visual-ops-edge
+EnvironmentFile=/etc/visual-ops-edge/edge.env
+ExecStart=/usr/bin/python3 manage.py run-edge --edge-id ${EDGE_ID}
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/visual-ops-edge/edge.log
+StandardError=append:/var/log/visual-ops-edge/edge-error.log
+
+[Install]
+WantedBy=multi-user.target

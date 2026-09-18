@@ -1,0 +1,35 @@
+:root {
+  --color-black: #090a0c;
+  --color-ink: #12151a;
+  --color-panel: #171b21;
+  --color-panel-soft: #20262e;
+  --color-elevated: #232a33;
+  --color-border: #313946;
+  --color-border-soft: #252b34;
+  --color-text: #f2f5f8;
+  --color-muted: #9aa6b4;
+  --color-subtle: #6f7b8a;
+  --color-paper: #f7f8fa;
+  --color-paper-muted: #e8ebef;
+  --color-online: #31c46b;
+  --color-attention: #e2b245;
+  --color-critical: #ef5b5b;
+  --color-accent: #7db3ff;
+  --font-display: "Avenir Next", Avenir, "Nunito Sans", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "Inter", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", ui-monospace, monospace;
+  --sidebar-width: clamp(14.25rem, 15vw, 16rem);
+  --sidebar-collapsed-width: 4.25rem;
+  --workspace-pad: clamp(1rem, 1.55vw, 1.5rem);
+  --panel-pad: clamp(0.875rem, 1.2vw, 1.125rem);
+  --row-pad: clamp(0.625rem, 0.9vw, 0.875rem);
+  --control-height: 2.25rem;
+  --topbar-height: clamp(4rem, 8svh, 4.75rem);
+  --media-min-height: clamp(18rem, 54svh, 34rem);
+  --media-wall-min-height: clamp(16rem, 46svh, 30rem);
+  --scrollbar-track: rgba(255, 255, 255, 0.035);
+  --scrollbar-thumb: rgba(154, 166, 180, 0.34);
+  --scrollbar-thumb-hover: rgba(125, 179, 255, 0.58);
+  --radius: 8px;
+  --shadow-panel: 0 0.75rem 1.75rem rgba(0, 0, 0, 0.2);
+}

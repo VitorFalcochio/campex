@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ao vivo | Campex</title>
+    <script>document.write('<base href="'+((location.protocol==='file:'||location.pathname.endsWith('.html')||location.pathname.startsWith('/static/')||/(^|\/)(operation\/)?frontend\/?$/.test(location.pathname))?'./':'/static/')+'">');</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=campex-live-v1-20260817" onerror="this.onerror=null;this.href='styles.css'" />
+  </head>
+  <body class="campex-dashboard cx-live-mode">
+    <aside class="cx-sidebar">
+      <div class="cx-sidebar-top">
+        <a class="cx-logo" href="/operations-view?view=home" aria-label="Campex">
+          <img src="campex-logo-oficial.png" alt="Campex" onerror="this.onerror=null;this.src='campex-logo-oficial.png'" />
+          <strong>Campex</strong>
+        </a>
+        <button class="cx-collapse" type="button" aria-label="Recolher sidebar">‹</button>
+      </div>
+      <button class="cx-workspace-switcher" type="button" aria-label="Trocar workspace" title="Cliente piloto · Unidade principal">
+        <span class="cx-workspace-initials">CP</span>
+        <span class="cx-workspace-copy">
+          <strong>Cliente piloto</strong>
+          <small>Unidade principal</small>
+        </span>
+        <span class="cx-workspace-arrow">⌄</span>
+      </button>
+      <nav class="cx-nav cx-nav-grouped" aria-label="Navegação principal">
+        <a href="/operations-view?view=home"><span class="cx-nav-icon" data-icon="home"></span>Início</a>
+        <a href="/operations-view"><span class="cx-nav-icon" data-icon="operations"></span>Visão geral</a>
+        <a href="/events"><span class="cx-nav-icon" data-icon="events"></span>Eventos</a>
+        <a href="/insights"><span class="cx-nav-icon" data-icon="insights"></span>Intelligence</a>
+        <a href="/reports"><span class="cx-nav-icon" data-icon="insights"></span>Relatórios</a>
+        <a class="active" aria-current="page" title="Ao vivo" href="/live-grid"><span class="cx-nav-icon" data-icon="camera"></span>Ao vivo</a>
+        <hr />
+        <a href="/settings/cameras"><span class="cx-nav-icon" data-icon="settings"></span>Configurações</a>
+      </nav>
+      <div class="cx-route-registry" hidden aria-hidden="true">
+        <a href="/operations-view">Visão geral</a>
+        <a href="/events">Eventos</a>
+        <a href="/insights">Intelligence</a>
+        <a href="/reports">Relatórios</a>
+        <a href="/live-grid">Ao vivo</a>
+        <a href="/settings/cameras">Configurações</a>
+      </div>
+      <div class="cx-account">
+        <a href="/help" class="cx-footer-link"><span class="cx-nav-icon" data-icon="help"></span>Ajuda</a>
+        <a href="/settings/cameras" class="cx-footer-link"><span class="cx-nav-icon" data-icon="status"></span>Sistema online</a>
+        <button class="cx-profile-trigger" type="button">
+          <span class="cx-avatar">C</span>
+          <span>
+            <strong class="cx-profile-name">Operador</strong>
+            <small class="cx-profile-role">Campex</small>
+          </span>
+        </button>
+      </div>
+    </aside>
+    <main class="cx-main app-content live-shell">
+      <header class="cx-header cx-topbar">
+        <div>
+          <h1>Ao vivo</h1>
+          <p>Acompanhe câmeras e estado operacional em tempo real.</p>
+        </div>
+        <div class="cx-header-tools">
+          <span id="liveViewStatus" class="badge offline">Conectando</span>
+          <a class="button-link" href="/live-grid">Ver todas as câmeras</a>
+          <button class="cx-icon-button" type="button" aria-label="Ajuda"><span class="cx-nav-icon" data-icon="help"></span></button>
+          <button class="cx-icon-button" type="button" aria-label="Notificações"><span class="cx-nav-icon" data-icon="alert"></span></button>
+          <button class="cx-top-avatar" type="button" aria-label="Conta">C</button>
+        </div>
+      </header>
+
+      <section class="cx-live-workspace">
+        <aside class="cx-live-rail" aria-label="Câmeras em monitoramento">
+          <div class="cx-panel-head">
+            <div>
+              <h2>Câmeras</h2>
+              <p>Pontos em acompanhamento.</p>
+            </div>
+          </div>
+          <input class="cx-search" placeholder="Buscar câmera" />
+          <div class="cx-camera-row active">
+            <strong id="liveRailName">Live View</strong>
+            <span id="liveRailStatus">Câmera conectando · IA aguardando</span>
+            <i id="liveRailAlert">Sem alerta ativo</i>
+          </div>
+        </aside>
+
+        <section class="panel viewer live-view-page cx-live-center">
+          <div class="viewer-header">
+            <div>
+              <h1 id="liveViewName">Live View</h1>
+              <p id="liveStreamSummary" class="muted">Câmera conectando | IA aguardando | Último frame indisponível</p>
+            </div>
+          </div>
+          <div id="liveViewStage" class="viewer-stage live-view-stage">
+            <div id="liveViewMessage">Abrindo transmissão...</div>
+            <img id="liveViewImage" alt="Transmissão ao vivo" />
+            <canvas id="liveViewCanvas"></canvas>
+          </div>
+          <div id="liveViewHint" class="muted">
+            A câmera é exibida quando o stream real está disponível. Configuração e detalhes técnicos ficam recolhidos.
+          </div>
+          <div id="drawToolbar" class="draw-toolbar" hidden>
+            <strong id="drawToolbarTitle">Modo de desenho</strong>
+            <span id="drawToolbarHint">Clique no vídeo para adicionar pontos.</span>
+            <label>
+              Tipo
+              <select id="zoneTypeInput">
+                <option value="work_area">Área de trabalho</option>
+                <option value="machine_region">machine_region</option>
+                <option value="operator_zone">operator_zone</option>
+                <option value="restricted_zone">restricted_zone</option>
+                <option value="workstation">workstation</option>
+                <option value="restricted_area">restricted_area</option>
+                <option value="dwell_area">dwell_area</option>
+              </select>
+            </label>
+            <label>
+              Nome
+              <input id="zoneNameInput" placeholder="Área de corte A6" />
+            </label>
+            <label>
+              Tolerância/tempo (s)
+              <input id="zoneSecondsInput" type="number" min="0" step="1" value="20" placeholder="20" />
+            </label>
+            <button type="button" id="undoDrawPoint">Desfazer ponto</button>
+            <button type="button" id="cancelDraw">Cancelar</button>
+            <button type="button" id="saveDraw">Salvar</button>
+          </div>
+          <div id="zoneList" class="zone-list"></div>
+        </section>
+
+        <aside class="cx-live-context">
+          <div>
+            <h2>Agora</h2>
+            <p>Estado operacional sustentado pelos dados reais.</p>
+          </div>
+          <dl class="cx-context-list">
+            <div><dt>Ativo</dt><dd id="liveViewAsset">Não configurado</dd></div>
+            <div><dt>Área/processo</dt><dd id="liveViewPath">Contexto em configuração</dd></div>
+            <div><dt>Máquina</dt><dd id="liveViewMachine">Não configurada</dd></div>
+            <div><dt>Estado</dt><dd id="liveViewMachineState">Dados indisponíveis</dd></div>
+            <div><dt>Operador</dt><dd id="liveViewOperator">Dados indisponíveis</dd></div>
+            <div><dt>Atividade</dt><dd id="liveViewSituation">Aguardando configuração</dd></div>
+            <div><dt>Tempo no estado</dt><dd id="liveViewStateTime">0s</dd></div>
+            <div><dt>Detecção humana</dt><dd id="liveViewPeople">Indisponível</dd></div>
+          </dl>
+          <section class="live-current-event">
+            <strong>Evento atual</strong>
+            <span id="liveCurrentEvent">Nenhum evento operacional aberto.</span>
+            <a id="liveCurrentEventLink" href="/events" hidden>Ver evento</a>
+          </section>
+          <section class="live-current-event">
+            <strong>Último alerta</strong>
+            <span id="liveLastAlert">Nenhum alerta entregue nesta sessão.</span>
+          </section>
+          <details id="monitorWizard" class="zone-card live-monitor-wizard">
+            <summary>
+              <span>
+                <strong>Configurar monitoramento</strong>
+                <small id="wizardSummary">Zonas, contexto e calibração ficam neste modo.</small>
+              </span>
+            </summary>
+            <button type="button" id="openMonitorWizard" class="primary">Editar configuração</button>
+            <div id="monitorWizardBody" class="live-wizard-body" hidden>
+              <div class="live-wizard-step">
+                <small>1. Contexto operacional</small>
+                <strong>Onde esta câmera está olhando?</strong>
+                <label>
+                  Unidade
+                  <select id="wizardUnitSelect"></select>
+                </label>
+                <label>
+                  Nova área
+                  <input id="wizardAreaName" placeholder="Ex.: Corte" />
+                </label>
+                <label>
+                  Área
+                  <select id="wizardAreaSelect"></select>
+                </label>
+                <label>
+                  Novo processo/estação
+                  <input id="wizardProcessName" placeholder="Ex.: Linha A6" />
+                </label>
+                <label>
+                  Processo/Estação
+                  <select id="wizardProcessSelect"></select>
+                </label>
+                <label>
+                  Novo ativo/máquina/posto
+                  <input id="wizardAssetName" placeholder="Ex.: A6" />
+                </label>
+                <label>
+                  Ativo/Máquina/Posto
+                  <select id="wizardAssetSelect"></select>
+                </label>
+                <button type="button" id="saveOperationalContext">Salvar contexto</button>
+                <span id="wizardContextStatus">Contexto ainda não salvo.</span>
+              </div>
+              <div class="live-wizard-step">
+                <small>2. O que observar</small>
+                <strong>Capacidades disponíveis nesta versão</strong>
+                <label class="cx-check-row">
+                  <input id="capabilityStoppage" type="checkbox" checked />
+                  Paradas / interrupções
+                </label>
+                <label class="cx-check-row">
+                  <input id="capabilityAbsence" type="checkbox" checked />
+                  Ausência de operador
+                </label>
+              </div>
+              <div class="live-wizard-step">
+                <small>3. Regiões</small>
+                <strong>Desenhe as áreas sobre o vídeo</strong>
+                <button type="button" id="drawMachineRegion">Desenhar região da máquina</button>
+                <button type="button" id="drawOperatorZone">Desenhar zona do operador</button>
+                <span id="wizardRegionStatus">Regiões ainda pendentes.</span>
+              </div>
+              <div class="live-wizard-step">
+                <small>4. Monitoramento</small>
+                <strong>Parâmetros humanos</strong>
+                <label>
+                  Nome do ativo monitorado
+                  <input id="wizardMachineName" placeholder="Ex.: A6" />
+                </label>
+                <label>
+                  Considerar parada após (s)
+                  <input id="wizardStopSeconds" type="number" min="1" step="1" value="10" />
+                </label>
+                <label>
+                  Considerar ausência após (s)
+                  <input id="wizardAbsenceSeconds" type="number" min="1" step="1" value="5" />
+                </label>
+                <label>
+                  Parada com operador após (s)
+                  <input id="wizardStoppedOperatorSeconds" type="number" min="1" step="1" value="5" />
+                </label>
+                <button type="button" id="saveMonitorWizard">Salvar monitoramento</button>
+                <span id="wizardMonitorStatus">Monitor ainda não criado.</span>
+              </div>
+              <div class="live-wizard-step">
+                <small>5. Calibração</small>
+                <strong>Calibrar máquina</strong>
+                <p class="muted">Use a máquina funcionando e depois parada. A Campex captura frames reais da câmera.</p>
+                <button type="button" id="wizardCalibrateActive">Calibrar funcionamento</button>
+                <button type="button" id="wizardCalibrateStopped">Calibrar parada</button>
+                <span id="wizardCalibrationStatus">Calibração pendente.</span>
+              </div>
+              <div class="live-wizard-step">
+                <small>6. Ativar</small>
+                <strong id="wizardReadyStatus">Aguardando requisitos.</strong>
+                <button type="button" id="activateMonitorWizard" disabled>Ativar monitoramento</button>
+                <span id="wizardActivationStatus">Complete as etapas acima.</span>
+              </div>
+            </div>
+          </details>
+          <section id="liveCriticalAlert" class="live-critical-alert" hidden>
+            <strong>Operador fora da zona</strong>
+            <span id="liveCriticalCamera">Câmera: —</span>
+            <span id="liveCriticalTime">Horário: —</span>
+            <span id="liveCriticalDuration">Tempo de ausência: 0s</span>
+            <a id="liveCriticalEvidence" target="_blank" rel="noreferrer" hidden>Ver evidência</a>
+          </section>
+          <details class="zone-card monitor-config-card live-config-mode">
+            <summary>
+              <span>
+                <strong id="monitorConfigTitle">Modo configuração</strong>
+                <small id="monitorConfigText">Zonas, calibração e parâmetros técnicos desta câmera.</small>
+              </span>
+            </summary>
+            <div id="monitorConfigCard" class="live-config-body">
+              <label>
+                Máquina
+                <select id="machineSelect"></select>
+              </label>
+              <label>
+                Nome da máquina
+                <input id="machineNameInput" placeholder="Ex.: Extrusora principal" />
+              </label>
+              <label>
+                Máquina parada após (s)
+                <input id="machineStopSecondsInput" type="number" min="1" step="1" value="10" />
+              </label>
+              <label>
+                Operador ausente após (s)
+                <input id="operatorAbsenceSecondsInput" type="number" min="1" step="1" value="5" />
+              </label>
+              <label>
+                Parada com operador após (s)
+                <input id="stoppedWithOperatorSecondsInput" type="number" min="1" step="1" value="5" />
+              </label>
+              <div class="actions">
+                <button type="button" id="createMachineMonitor">Configurar monitoramento</button>
+                <button type="button" id="refreshMachines">Atualizar</button>
+              </div>
+              <span id="machineRegionStatus">machine_region: não verificada</span>
+              <span id="calibrationStatus">Calibração: aguardando</span>
+              <span id="calibrationProgress">Progresso: 0%</span>
+              <span id="calibrationSamples">Amostras: 0</span>
+              <span id="calibrationBaselines">Baselines: ativa — / parada —</span>
+              <span id="calibrationSeparation">Separação: —</span>
+              <div class="actions">
+                <button type="button" id="calibrateActive">Calibrar máquina ativa</button>
+                <button type="button" id="calibrateStopped">Calibrar máquina parada</button>
+                <button type="button" id="startMonitoring">Iniciar monitoramento</button>
+              </div>
+            </div>
+          </details>
+          <details class="technical-details">
+            <summary>Detalhes técnicos</summary>
+            <dl class="cx-context-list">
+              <div><dt>Resolução</dt><dd id="liveViewResolution">indisponível</dd></div>
+              <div><dt>FPS captura</dt><dd id="liveViewFps">indisponível</dd></div>
+              <div><dt>FPS inferência</dt><dd id="liveViewInferenceFps">0</dd></div>
+              <div><dt>Atividade visual</dt><dd id="liveViewMotion">0</dd></div>
+              <div><dt>Raw score</dt><dd id="liveViewRawScore">—</dd></div>
+              <div><dt>Frames analisados</dt><dd id="liveViewFramesAnalyzed">0</dd></div>
+              <div><dt>ROI</dt><dd id="liveViewRoi">—</dd></div>
+              <div><dt>Análise</dt><dd id="liveViewAnalysisStatus">Aguardando configuração da máquina</dd></div>
+              <div><dt>Confiança</dt><dd id="liveViewConfidence">0.00</dd></div>
+              <div><dt>Motivo interno</dt><dd id="liveViewReason">Aguardando análise</dd></div>
+              <div><dt>Relação</dt><dd id="liveViewRelation">Aguardando configuração</dd></div>
+            </dl>
+          </details>
+          <details class="zone-card live-action-drawer">
+            <summary>
+              <span>
+                <strong>Ações da câmera</strong>
+                <small>IA, zonas e atalhos de suporte.</small>
+              </span>
+            </summary>
+          <div class="actions viewer-actions cx-action-stack">
+            <button type="button" id="liveAiStart">Ativar IA</button>
+            <button type="button" id="liveAiStop">Desativar IA</button>
+            <button type="button" id="configureRestrictedArea">Nova zona</button>
+            <button type="button" id="clearMachine">Limpar zonas</button>
+            <a class="button-link" href="/live-grid">Abrir grade multi-câmera</a>
+            <a class="button-link" href="/operations-view" target="_blank" rel="noreferrer">Abrir Visão geral</a>
+          </div>
+          </details>
+          <section class="zone-card live-realtime-panel">
+            <div class="cx-panel-head">
+              <div>
+                <strong>Alertas em tempo real</strong>
+                <span>Eventos operacionais confirmados.</span>
+              </div>
+            </div>
+            <div id="liveRealtimeAlerts" class="live-realtime-alerts">
+              <div class="muted">Aguardando eventos reais.</div>
+            </div>
+          </section>
+        </aside>
+      </section>
+      <div id="liveToast" class="live-toast" hidden>
+        <strong id="liveToastTitle">Evento operacional</strong>
+        <span id="liveToastText">Novo alerta recebido.</span>
+      </div>
+    </main>
+    <script src="shell.js?v=campex-live-v1-20260817" onerror="this.onerror=null;this.src='shell.js'"></script>
+    <script src="live-view.js?v=campex-live-v1-20260903" onerror="this.onerror=null;this.src='live-view.js'"></script>
+  </body>
+</html>

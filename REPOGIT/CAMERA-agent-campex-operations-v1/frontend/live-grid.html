@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Campex Monitoramento</title>
+    <script>document.write('<base href="'+((location.protocol==='file:'||location.pathname.endsWith('.html')||location.pathname.startsWith('/static/')||/(^|\/)(operation\/)?frontend\/?$/.test(location.pathname))?'./':'/static/')+'">');</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=campex-live-v1-20260817" onerror="this.onerror=null;this.href='styles.css'" />
+  </head>
+  <body class="campex-dashboard cx-live-mode">
+    <aside class="cx-sidebar">
+      <div class="cx-sidebar-top">
+        <a class="cx-logo" href="/operations-view?view=home" aria-label="Campex">
+          <img src="campex-logo-oficial.png" alt="Campex" onerror="this.onerror=null;this.src='campex-logo-oficial.png'" />
+          <strong>Campex</strong>
+        </a>
+        <button class="cx-collapse" type="button" aria-label="Recolher sidebar">‹</button>
+      </div>
+      <button class="cx-workspace-switcher" type="button" aria-label="Trocar workspace" title="Cliente piloto · Unidade principal">
+        <span class="cx-workspace-initials">CP</span>
+        <span class="cx-workspace-copy">
+          <strong>Cliente piloto</strong>
+          <small>Unidade principal</small>
+        </span>
+        <span class="cx-workspace-arrow">⌄</span>
+      </button>
+      <nav class="cx-nav cx-nav-grouped" aria-label="Navegação principal">
+        <a href="/operations-view?view=home"><span class="cx-nav-icon" data-icon="home"></span>Início</a>
+        <a href="/operations-view"><span class="cx-nav-icon" data-icon="operations"></span>Visão geral</a>
+        <a href="/events"><span class="cx-nav-icon" data-icon="events"></span>Eventos</a>
+        <a href="/insights"><span class="cx-nav-icon" data-icon="insights"></span>Intelligence</a>
+        <a data-route="/reports" href="/reports"><span class="cx-nav-icon" data-icon="insights"></span>Relatórios</a>
+        <a class="active" aria-current="page" title="Ao vivo" href="/live-grid"><span class="cx-nav-icon" data-icon="camera"></span>Ao vivo</a>
+        <hr />
+        <a href="/settings/cameras"><span class="cx-nav-icon" data-icon="settings"></span>Configurações</a>
+      </nav>
+      <div class="cx-account">
+        <a href="/help" class="cx-footer-link"><span class="cx-nav-icon" data-icon="help"></span>Ajuda</a>
+        <a href="/settings/cameras" class="cx-footer-link"><span class="cx-nav-icon" data-icon="status"></span>Sistema online</a>
+        <button class="cx-profile-trigger" type="button">
+          <span class="cx-avatar">C</span>
+          <span>
+            <strong class="cx-profile-name">Operador</strong>
+            <small class="cx-profile-role">Campex</small>
+          </span>
+        </button>
+      </div>
+    </aside>
+    <main class="cx-main app-content live-grid-shell">
+      <section class="cx-live-grid-page">
+        <div class="cx-home-topbar">
+          <div class="cx-home-search">Buscar câmeras, ativos, áreas...</div>
+          <div class="cx-home-topbar-actions">
+            <span>Ao vivo</span>
+            <span id="gridResources">Carregando câmeras</span>
+          </div>
+        </div>
+
+        <header class="cx-live-grid-hero">
+          <div>
+            <span>Ao vivo</span>
+            <h1>Veja sua operação em tempo real.</h1>
+            <p>Acompanhe câmeras, estados e eventos ativos.</p>
+          </div>
+        </header>
+
+        <div id="gridCameraPicker" class="cx-grid-picker"></div>
+        <div id="gridMessage" class="muted">Carregando câmeras cadastradas...</div>
+        <section id="liveGrid" class="cx-live-grid"></section>
+      </section>
+    </main>
+    <script src="shell.js?v=campex-live-v1-20260817" onerror="this.onerror=null;this.src='shell.js'"></script>
+    <script src="live-grid.js?v=campex-live-v1-20260903" onerror="this.onerror=null;this.src='live-grid.js'"></script>
+  </body>
+</html>

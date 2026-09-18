@@ -1,0 +1,17 @@
+{
+  "roi": [
+    217,
+    144,
+    504,
+    148
+  ],
+  "motion_threshold": 0.02,
+  "confirm_running_seconds": 3.0,
+  "confirm_stopped_seconds": 8.0,
+  "minimum_event_seconds": 3.0,
+  "process_width": 960,
+  "blur_kernel": 9,
+  "pixel_difference_threshold": 22,
+  "morphology_kernel": 3,
+  "display": true
+}

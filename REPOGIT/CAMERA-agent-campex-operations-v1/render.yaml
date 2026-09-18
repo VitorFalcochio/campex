@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: campex-cloud
+    runtime: python
+    plan: free
+
+    buildCommand: pip install -r requirements.txt
+
+    startCommand: python -m uvicorn cloud.api:api --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: campex-cloud-db
+          property: connectionString
+
+      - key: CAMPEX_COOKIE_SECURE
+        value: "true"
+
+      - key: CAMPEX_ENABLE_PUBLIC_SIGNUP
+        value: "false"
+
+      - key: CAMPEX_CLOUD_ADMIN_EMAIL
+        sync: false
+
+      - key: CAMPEX_CLOUD_ADMIN_PASSWORD
+        sync: false
+
+databases:
+  - name: campex-cloud-db
+    plan: free

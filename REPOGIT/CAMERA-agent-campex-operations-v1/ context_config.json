@@ -1,0 +1,19 @@
+{
+  "machine_roi": null,
+  "operator_zone": null,
+  "motion_threshold": 0.02,
+  "confirm_running_seconds": 3.0,
+  "confirm_stopped_seconds": 8.0,
+  "confirm_operator_present_seconds": 1.0,
+  "confirm_operator_absent_seconds": 3.0,
+  "minimum_event_seconds": 3.0,
+  "process_width": 960,
+  "blur_kernel": 9,
+  "pixel_difference_threshold": 22,
+  "morphology_kernel": 3,
+  "person_detection_interval_frames": 5,
+  "person_process_width": 640,
+  "person_confidence_threshold": 0.25,
+  "hog_confidence_threshold": 0.15,
+  "yolo_model": "yolo11n.pt"
+}

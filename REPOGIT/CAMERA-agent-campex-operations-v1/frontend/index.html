@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Campex MVP - Câmeras</title>
+    <script>document.write('<base href="'+((location.protocol==='file:'||location.pathname.endsWith('.html')||location.pathname.startsWith('/static/')||/(^|\/)(operation\/)?frontend\/?$/.test(location.pathname))?'./':'/static/')+'">');</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=campex-settings-v1-20260902" onerror="this.onerror=null;this.href='styles.css'" />
+  </head>
+  <body class="campex-dashboard cx-setup-mode">
+    <aside class="cx-sidebar">
+      <div class="cx-sidebar-top">
+        <a class="cx-logo" href="/operations-view" aria-label="Campex">
+          <img src="campex-logo-oficial.png" alt="Campex" onerror="this.onerror=null;this.src='campex-logo-oficial.png'" />
+          <strong>Campex</strong>
+        </a>
+        <button class="cx-collapse" type="button" aria-label="Recolher sidebar">‹</button>
+      </div>
+      <button class="cx-workspace-switcher" type="button" aria-label="Trocar workspace" title="Cliente piloto · Unidade principal">
+        <span class="cx-workspace-initials">CP</span>
+        <span class="cx-workspace-copy">
+          <strong>Cliente piloto</strong>
+          <small>Unidade principal</small>
+        </span>
+        <span class="cx-workspace-arrow">⌄</span>
+      </button>
+      <nav class="cx-nav cx-nav-grouped" aria-label="Navegação principal">
+        <a href="/operations-view?view=home"><span class="cx-nav-icon" data-icon="home"></span>Início</a>
+        <a href="/operations-view"><span class="cx-nav-icon" data-icon="operations"></span>Operação</a>
+        <a href="/events"><span class="cx-nav-icon" data-icon="events"></span>Eventos</a>
+        <a href="/insights"><span class="cx-nav-icon" data-icon="insights"></span>Intelligence</a>
+        <a data-route="/reports" href="/reports"><span class="cx-nav-icon" data-icon="reports"></span>Relatórios</a>
+        <a href="/live-grid"><span class="cx-nav-icon" data-icon="camera"></span>Ao vivo</a>
+        <hr />
+        <a class="active" aria-current="page" title="Configurações" href="/settings/cameras"><span class="cx-nav-icon" data-icon="settings"></span>Configurações</a>
+      </nav>
+      <div class="cx-account">
+        <a href="/help" class="cx-footer-link"><span class="cx-nav-icon" data-icon="help"></span>Ajuda</a>
+        <a href="/settings/cameras" class="cx-footer-link"><span class="cx-nav-icon" data-icon="status"></span>Sistema online</a>
+        <div class="cx-profile-menu-wrap">
+          <button class="cx-profile-trigger" type="button" aria-haspopup="true">
+            <span class="cx-avatar">C</span>
+            <span>
+              <strong class="cx-profile-name">Configuração</strong>
+              <small class="cx-profile-role">Admin</small>
+            </span>
+          </button>
+          <div class="cx-profile-menu" role="menu">
+            <a href="/settings/cameras#minha-conta" role="menuitem">Minha conta</a>
+            <a href="/settings/cameras#usuarios" role="menuitem">Usuários e permissões</a>
+            <button id="sidebarLogoutButton" type="button" role="menuitem">Sair</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <main class="cx-main app-content">
+      <header class="cx-header cx-topbar">
+        <div>
+          <p>Campex</p>
+          <h1>Configurações</h1>
+        </div>
+        <div class="cx-header-tools">
+          <input class="cx-top-search" placeholder="Busca" hidden />
+          <button class="cx-icon-button" type="button" aria-label="Ajuda"><span class="cx-nav-icon" data-icon="help"></span></button>
+          <button class="cx-icon-button" type="button" aria-label="Notificações"><span class="cx-nav-icon" data-icon="alert"></span></button>
+          <button class="cx-top-avatar" type="button" aria-label="Conta">C</button>
+        </div>
+      </header>
+
+      <section class="cx-settings-layout">
+        <aside class="cx-settings-menu">
+          <span class="cx-settings-menu-label">Geral</span>
+          <a href="/settings/cameras#cliente" data-setup-nav="cliente">Organização</a>
+          <a href="/settings/cameras#unidades" data-setup-nav="unidades">Unidades</a>
+          <a href="/settings/cameras#usuarios" data-setup-nav="usuarios">Usuários e permissões</a>
+
+          <span class="cx-settings-menu-label">Operação</span>
+          <a href="/settings/cameras#cameras" data-setup-nav="cameras">Câmeras</a>
+          <a href="/settings/cameras#maquinas" data-setup-nav="maquinas">Ativos e áreas</a>
+
+          <span class="cx-settings-menu-label">Comunicação</span>
+          <a href="/settings/cameras#destinatarios" data-setup-nav="destinatarios">Relatórios e notificações</a>
+          <a href="/settings/cameras#entregas" data-setup-nav="entregas">Histórico de envios</a>
+
+          <span class="cx-settings-menu-label">Conta</span>
+          <a href="/settings/cameras#minha-conta" data-setup-nav="minha-conta">Minha conta</a>
+          <a href="/settings/cameras#seguranca" data-setup-nav="seguranca">Segurança</a>
+        </aside>
+
+        <div class="cx-settings-content">
+      <section class="cx-setup-hero">
+        <div>
+          <span>CONFIGURAÇÕES</span>
+          <h2>Implantação e configurações</h2>
+          <p>Configure a Campex na ordem certa: organização, operação, câmeras, monitoramento e alertas.</p>
+        </div>
+        <a class="cx-setup-help-button" href="/help">Ajuda</a>
+        <div class="cx-setup-hero-status">
+          <small>Status</small>
+          <strong id="setupHeroStatus">Verificando configuração</strong>
+          <details class="cx-setup-technical-status">
+            <summary>Detalhes técnicos</summary>
+            <span id="apiStatus" class="badge">Verificando API</span>
+            <small>Ambiente local do piloto</small>
+          </details>
+        </div>
+      </section>
+      <section id="setupOverview" class="cx-settings-overview" data-setup-section="cliente">
+        <div class="cx-settings-section-head">
+          <div>
+            <span>Geral</span>
+            <h2>Visão geral da organização</h2>
+            <p>Resumo da conta, operação monitorada e comunicação configurada.</p>
+          </div>
+          <button class="cx-secondary-link" type="button" data-open-organization-editor>Editar organização</button>
+        </div>
+
+        <div class="cx-settings-overview-grid">
+          <div class="cx-settings-summary-grid">
+            <article class="cx-settings-summary-card is-wide">
+              <span class="cx-summary-icon cx-org-logo" data-tone="blue" aria-hidden="true">IA</span>
+              <div>
+                <small>Organização</small>
+                <strong id="settingsOrgName">Indisponível</strong>
+                <p><span id="settingsOrgStatus" class="cx-setup-pill neutral">Sessão necessária</span></p>
+              </div>
+              <button type="button" data-open-organization-editor aria-label="Editar organização">Editar</button>
+            </article>
+
+            <article class="cx-settings-summary-card">
+              <span class="cx-summary-icon" data-tone="purple"><span class="cx-nav-icon" data-icon="overview"></span></span>
+              <div>
+                <small>Unidade principal</small>
+                <strong id="settingsUnitName">Indisponível</strong>
+                <p id="settingsUnitMeta">Entre para carregar unidade</p>
+              </div>
+              <a href="/settings/cameras#unidades" aria-label="Editar unidades">Editar</a>
+            </article>
+
+            <article class="cx-settings-summary-card">
+              <span class="cx-summary-icon" data-tone="blue"><span class="cx-nav-icon" data-icon="users"></span></span>
+              <div>
+                <small>Usuários</small>
+                <strong id="settingsUsersCount">Indisponível</strong>
+                <p id="settingsUsersMeta">Membros da organização</p>
+              </div>
+              <a href="/settings/cameras#usuarios" aria-label="Editar usuários">Editar</a>
+            </article>
+
+            <article class="cx-settings-summary-card">
+              <span class="cx-summary-icon" data-tone="green"><span class="cx-nav-icon" data-icon="reports"></span></span>
+              <div>
+                <small>Relatório operacional</small>
+                <strong id="settingsReportSchedule">Não configurado</strong>
+                <p id="settingsReportRecipient">Destino indisponível</p>
+              </div>
+              <a href="/settings/cameras#destinatarios" aria-label="Editar relatórios e notificações">Editar</a>
+            </article>
+
+            <article class="cx-settings-summary-card">
+              <span class="cx-summary-icon" data-tone="amber"><span class="cx-nav-icon" data-icon="camera"></span></span>
+              <div>
+                <small>Operação monitorada</small>
+                <strong id="settingsOperationCount">Indisponível</strong>
+                <p id="settingsOperationMeta">Câmeras, ativos e áreas</p>
+              </div>
+              <a href="/settings/cameras#maquinas" aria-label="Editar operação monitorada">Editar</a>
+            </article>
+
+            <article class="cx-settings-activity-card">
+              <div>
+                <small>Resumo de configuração</small>
+                <strong id="settingsReadinessTitle">Aguardando dados</strong>
+                <p id="settingsReadinessText">Entre para carregar o status da organização e da operação.</p>
+              </div>
+              <a id="settingsReadinessAction" href="/settings/cameras#entregas">Ver histórico</a>
+            </article>
+          </div>
+
+          <aside class="cx-settings-status-card">
+            <h3>Status do sistema</h3>
+            <span id="settingsSystemBadge" class="cx-setup-pill neutral">Sessão necessária</span>
+            <div class="cx-settings-status-list">
+              <div><span>Plataforma</span><strong id="settingsPlatformStatus">Indisponível</strong></div>
+              <div><span>Ingestão de dados</span><strong id="settingsDataStatus">Indisponível</strong></div>
+              <div><span>Processamento</span><strong id="settingsProcessingStatus">Indisponível</strong></div>
+              <div><span>Armazenamento</span><strong id="settingsStorageStatus">Indisponível</strong></div>
+              <div><span>Relatórios</span><strong id="settingsReportsStatus">Indisponível</strong></div>
+            </div>
+            <hr />
+            <h3>Segurança</h3>
+            <div class="cx-settings-status-list">
+              <div><span>Último acesso</span><strong id="settingsLastAccess">Sessão necessária</strong></div>
+              <div><span>Sessões ativas</span><strong id="settingsActiveSessions">Indisponível</strong></div>
+            </div>
+            <a class="cx-settings-status-link" href="/settings/cameras#seguranca">Ver detalhes de segurança</a>
+          </aside>
+        </div>
+      </section>
+      <section id="login" class="panel cx-auth-panel" data-setup-section="cliente" hidden>
+        <div id="loginHeader" class="cx-auth-heading">
+          <span>Conta</span>
+          <h2>Entrar na Campex</h2>
+          <p>Acesse sua organização e operação.</p>
+        </div>
+
+        <form id="loginForm" class="form cx-login-form" method="post" autocomplete="on">
+          <label>
+            E-mail
+            <input name="email" type="email" autocomplete="username" />
+          </label>
+          <label>
+            Senha
+            <span class="cx-password-field">
+              <input id="loginPasswordInput" name="senha" type="password" autocomplete="current-password" />
+              <button id="loginPasswordToggle" type="button" aria-label="Mostrar senha" aria-pressed="false">
+                <span aria-hidden="true">👁</span>
+              </button>
+            </span>
+          </label>
+          <button class="cx-auth-submit" type="submit">Entrar</button>
+          <div class="cx-auth-divider"><span>ou</span></div>
+          <a id="googleOAuthButton" class="cx-oauth-button" href="/auth/oauth/google/start?next=/settings/cameras">
+            <span class="cx-google-mark" aria-hidden="true">G</span>
+            Continuar com Google
+          </a>
+          <div id="loginStatus" class="cx-login-status" role="status">Entre para acessar as configurações da operação.</div>
+          <button id="showSignupButton" class="cx-auth-link" type="button">Criar conta</button>
+        </form>
+
+        <form id="signupForm" class="form cx-login-form" method="post" autocomplete="on" hidden>
+          <div class="cx-auth-heading compact">
+            <span>Nova organização</span>
+            <h2>Criar conta</h2>
+            <p>Crie sua empresa na Campex e comece a configuração.</p>
+          </div>
+          <label>
+            Nome
+            <input name="nome" required autocomplete="name" />
+          </label>
+          <label>
+            E-mail
+            <input name="email" type="email" required autocomplete="username" />
+          </label>
+          <label>
+            Senha
+            <input name="senha" type="password" required minlength="8" autocomplete="new-password" />
+          </label>
+          <label>
+            Nome da empresa
+            <input name="empresa_nome" required autocomplete="organization" />
+          </label>
+          <button class="cx-auth-submit" type="submit">Criar conta</button>
+          <div id="signupStatus" class="cx-login-status" role="status"></div>
+          <button id="showLoginButton" class="cx-auth-link" type="button">Já tenho uma conta</button>
+        </form>
+
+        <div id="connectedAccountPanel" class="cx-connected-account" hidden>
+          <div>
+            <span>Conta conectada</span>
+            <strong id="connectedAccountName">Usuário Campex</strong>
+            <small id="connectedAccountEmail">-</small>
+            <small id="connectedAccountRole">Usuário</small>
+          </div>
+          <div class="cx-connected-actions">
+            <a href="/settings/cameras#usuarios">Gerenciar conta</a>
+            <button id="logoutButton" type="button">Sair</button>
+          </div>
+        </div>
+
+        <section id="firstRunPanel" class="compact-card" hidden>
+          <h3>Primeira instalação da Campex</h3>
+          <p class="muted">
+            Use este fluxo somente no primeiro uso do computador Edge. Depois que o primeiro administrador for criado,
+            esta etapa fica bloqueada automaticamente.
+          </p>
+          <form id="firstRunForm" class="form" method="post" action="/first-run/complete" autocomplete="off">
+            <div class="grid">
+              <label>
+                Nome do administrador
+                <input name="admin_nome" required placeholder="Ex.: Felipe" />
+              </label>
+              <label>
+                E-mail do administrador
+                <input name="admin_email" type="email" required autocomplete="username" />
+              </label>
+              <label>
+                Senha
+                <input name="admin_senha" type="password" required minlength="8" autocomplete="new-password" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                Empresa
+                <input name="empresa_nome" required placeholder="Ex.: Cliente Industrial" />
+              </label>
+              <label>
+                Documento opcional
+                <input name="empresa_documento" placeholder="CNPJ ou documento" />
+              </label>
+              <label>
+                Unidade inicial
+                <input name="unidade_nome" required placeholder="Ex.: Fábrica principal" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                Localização opcional
+                <input name="unidade_localizacao" placeholder="Cidade, UF" />
+              </label>
+              <label>
+                Timezone
+                <input name="timezone" value="America/Sao_Paulo" />
+              </label>
+            </div>
+            <div class="actions">
+              <button type="submit">Criar primeira instalação</button>
+            </div>
+            <div id="firstRunStatus" class="muted">Verificando disponibilidade do First Run...</div>
+          </form>
+        </section>
+      </section>
+
+      <section id="minha-conta" class="panel cx-account-settings-panel" data-setup-section="minha-conta">
+        <div class="cx-settings-section-head compact">
+          <div>
+            <span>Conta</span>
+            <h2>Minha conta</h2>
+            <p>Dados da sessão atual na Campex.</p>
+          </div>
+        </div>
+        <div id="accountSettingsPanel" class="cx-connected-account">
+          <div class="cx-settings-block">
+            <span>Perfil</span>
+            <div class="cx-profile-photo-row">
+              <span class="cx-account-photo" aria-hidden="true">C</span>
+              <div>
+                <strong>Foto de perfil</strong>
+                <small>Fallback por iniciais enquanto não houver armazenamento de imagem.</small>
+                <div class="cx-inline-actions">
+                  <button type="button" disabled>Alterar foto</button>
+                  <button type="button" disabled>Remover foto</button>
+                </div>
+              </div>
+            </div>
+            <dl class="cx-account-fields">
+              <div>
+                <dt>Nome</dt>
+                <dd id="accountSettingsName">Usuário Campex</dd>
+              </div>
+              <div>
+                <dt>E-mail</dt>
+                <dd id="accountSettingsEmail">-</dd>
+              </div>
+              <div>
+                <dt>Função</dt>
+                <dd id="accountSettingsRole">Usuário</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="cx-settings-block">
+            <span>Segurança</span>
+            <dl class="cx-account-fields">
+              <div>
+                <dt>Alterar senha</dt>
+                <dd>Disponível pelo fluxo de autenticação existente.</dd>
+              </div>
+              <div>
+                <dt>Sessão atual</dt>
+                <dd id="settingsCurrentSession">Conta autenticada</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="cx-settings-block">
+            <span>Preferências</span>
+            <dl class="cx-account-fields">
+              <div>
+                <dt>Idioma</dt>
+                <dd>Português (Brasil)</dd>
+              </div>
+              <div>
+                <dt>Timezone</dt>
+                <dd>America/Sao_Paulo</dd>
+              </div>
+              <div>
+                <dt>Notificações pessoais</dt>
+                <dd>Gerenciadas em destinatários de alerta.</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="cx-connected-actions">
+            <a href="/settings/cameras#usuarios">Usuários e permissões</a>
+            <button id="accountSettingsLogoutButton" type="button">Sair</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="seguranca" class="panel cx-security-settings-panel" data-setup-section="seguranca">
+        <div class="cx-settings-section-head compact">
+          <div>
+            <span>Conta</span>
+            <h2>Segurança</h2>
+            <p>Controles de acesso e informações sensíveis permanecem protegidos pelo backend da Campex.</p>
+          </div>
+        </div>
+        <div class="cx-settings-security-grid">
+          <article>
+            <strong>Autenticação</strong>
+            <span id="settingsSecurityAuth">Sessão necessária</span>
+          </article>
+          <article>
+            <strong>Credenciais de câmera</strong>
+            <span>Não são exibidas no navegador.</span>
+          </article>
+          <article>
+            <strong>Permissões</strong>
+            <span>Gerenciadas em Usuários e permissões.</span>
+          </article>
+        </div>
+      </section>
+
+        <section id="maquinas" class="setup-v0-panel" data-setup-section="maquinas">
+          <div class="setup-v0-header">
+            <div>
+              <p class="eyebrow">Configurações</p>
+              <h2>Implantação guiada</h2>
+              <p>Estrutura da operação: configure empresa, operação, câmera, monitoramento, calibração e alertas em uma sequência segura.</p>
+            </div>
+            <span id="setupSaveStatus" class="badge">Carregando configuração</span>
+          </div>
+
+          <div class="setup-journey">
+            <article class="compact-card setup-stage">
+              <span class="badge">1. Empresa</span>
+              <h3>Organização pronta</h3>
+              <div id="setupCompanySummary" class="compact-list">Carregando empresa...</div>
+            </article>
+            <article class="compact-card setup-stage">
+              <span class="badge">2. Operação</span>
+              <h3>Mapa da operação</h3>
+              <div id="setupOperationSummary" class="compact-list">Carregando operação...</div>
+            </article>
+            <article class="compact-card setup-stage">
+              <span class="badge">3. Câmera</span>
+              <h3>Câmera conectada</h3>
+              <div id="setupCameraGate" class="compact-list">Crie um ativo para liberar cadastro de câmera.</div>
+            </article>
+          </div>
+
+          <div class="setup-v0-grid">
+            <form id="setupUnitForm" class="form compact-card">
+              <h3>1. Unidade/Fábrica</h3>
+              <label>
+                Organização
+                <select name="cliente_id" id="setupUnitClientSelect"></select>
+              </label>
+              <label>
+                Nome da unidade
+                <input name="nome" required placeholder="Ex.: Fábrica principal" />
+              </label>
+              <button type="submit">Salvar unidade</button>
+            </form>
+
+            <form id="setupAreaForm" class="form compact-card">
+              <h3>2. Área</h3>
+              <label>
+                Unidade
+                <select name="unidade_id" id="setupAreaUnitSelect" required></select>
+              </label>
+              <label>
+                Nome da área
+                <input name="nome" required placeholder="Ex.: Corte" />
+              </label>
+              <button type="submit">Salvar área</button>
+            </form>
+
+            <form id="setupProcessForm" class="form compact-card">
+              <h3>3. Processo/Estação</h3>
+              <label>
+                Área
+                <select name="area_id" id="setupProcessAreaSelect"></select>
+              </label>
+              <label>
+                Nome do processo
+                <input name="nome" required placeholder="Ex.: Linha A6" />
+              </label>
+              <button type="submit">Salvar processo</button>
+            </form>
+
+            <form id="setupAssetForm" class="form compact-card">
+              <h3>4. Máquina/Posto</h3>
+              <label>
+                Processo
+                <select name="process_id" id="setupAssetProcessSelect"></select>
+              </label>
+              <label>
+                Nome do ativo
+                <input name="nome" required placeholder="Ex.: A6" />
+              </label>
+              <button type="submit">Salvar ativo</button>
+            </form>
+          </div>
+
+          <div class="settings-grid">
+            <section class="compact-card">
+              <h3>Hierarquia configurada</h3>
+              <div id="setupHierarchy" class="compact-list">Carregando...</div>
+            </section>
+
+            <section class="compact-card">
+              <h3>Associar câmera ao ativo</h3>
+              <form id="setupCameraContextForm" class="form compact-form">
+                <label>
+                  Câmera
+                  <select name="camera_id" id="setupContextCameraSelect" required></select>
+                </label>
+                <label>
+                  Ativo/máquina/posto
+                  <select name="asset_id" id="setupContextAssetSelect" required></select>
+                </label>
+                <button type="submit">Associar câmera</button>
+              </form>
+              <div id="setupCameraLinks" class="compact-list"></div>
+            </section>
+          </div>
+
+          <div class="settings-grid">
+            <section class="compact-card">
+              <span class="badge">4. Monitoramento</span>
+              <h3>O que a Campex deve observar?</h3>
+              <p class="muted">Capacidades configuráveis nesta versão: paradas/interrupções e ausência de operador.</p>
+              <div id="setupCapabilities" class="compact-list">Carregando capacidades...</div>
+            </section>
+
+            <section class="compact-card">
+              <span class="badge">7. Pronto para operar</span>
+              <h3>Status de configuração</h3>
+              <div id="setupReadiness" class="compact-list">Carregando status...</div>
+            </section>
+          </div>
+
+          <section class="compact-card">
+            <span class="badge">Checklist final</span>
+            <h3>Pronto para operar</h3>
+            <p class="muted">A Campex só marca pronto quando existe comprovação real no banco e no runtime.</p>
+            <div id="setupInstallChecklist" class="compact-list">Carregando checklist...</div>
+            <div id="setupReadinessConclusion" class="result muted">Calculando conclusão...</div>
+          </section>
+
+          <section class="compact-card">
+            <span class="badge">5. Calibração</span>
+            <h3>Monitoramento e calibração</h3>
+            <p class="muted">
+              Desenhe a região da máquina e a zona do operador na câmera aberta abaixo. Depois salve o monitor com tempos em linguagem operacional.
+            </p>
+            <form id="setupMonitorForm" class="form">
+              <div class="grid">
+                <label>
+                  Câmera
+                  <select name="camera_id" id="setupMonitorCameraSelect" required></select>
+                </label>
+                <label>
+                  Nome da máquina/posto
+                  <input name="nome" required placeholder="Ex.: A6" />
+                </label>
+                <details class="setup-advanced">
+                  <summary>Configurações avançadas de tempo</summary>
+                  <label>
+                    Considerar parada após
+                    <input name="stop_seconds" type="number" min="1" value="30" />
+                  </label>
+                  <label>
+                    Considere ausência após
+                    <input name="operator_absence_seconds" type="number" min="1" value="300" />
+                  </label>
+                  <label>
+                    Parada com operador após
+                    <input name="stopped_with_operator_seconds" type="number" min="1" value="120" />
+                  </label>
+                </details>
+              </div>
+              <div class="actions">
+                <button type="button" id="setupOpenCameraButton">Abrir câmera para desenhar zonas</button>
+                <button type="submit">Salvar monitor com zonas desenhadas</button>
+              </div>
+            </form>
+          </section>
+
+          <details class="compact-card setup-advanced">
+            <summary>Diagnóstico técnico</summary>
+            <p class="muted">IDs, runtime, câmera, listas técnicas e saúde continuam disponíveis abaixo para suporte.</p>
+          </details>
+        </section>
+
+        <dialog id="organizationDialog" class="cx-settings-modal">
+          <div id="cliente" class="panel cx-settings-edit-panel">
+            <h2>Editar organização</h2>
+            <div class="cx-profile-photo-row cx-organization-logo-row">
+              <span class="cx-account-photo cx-org-logo" aria-hidden="true">IA</span>
+              <div>
+                <strong>Logo da empresa</strong>
+                <small>Fallback por iniciais enquanto não houver armazenamento de logo.</small>
+                <div class="cx-inline-actions">
+                  <button type="button" disabled>Alterar logo</button>
+                </div>
+              </div>
+            </div>
+            <form id="clientForm" class="form">
+              <label>
+                Nome da organização
+                <input name="nome" required placeholder="Ex.: Organização piloto" />
+              </label>
+              <label>
+                Documento opcional
+                <input name="documento" placeholder="CNPJ ou documento" />
+              </label>
+              <div class="actions">
+                <button type="submit">Salvar organização</button>
+                <button type="button" data-close-organization-editor>Cancelar</button>
+              </div>
+            </form>
+            <div id="clientList" class="compact-list"></div>
+          </div>
+        </dialog>
+        <div class="settings-grid cx-setup-section-grid">
+          <div id="unidades" class="panel" data-setup-section="unidades">
+            <h2>Unidade</h2>
+            <form id="unitForm" class="form">
+              <label>
+                Organização
+                <select name="cliente_id" id="unitClientSelect"></select>
+              </label>
+              <label>
+                Nome da unidade
+                <input name="nome" required placeholder="Ex.: Fábrica principal" />
+              </label>
+              <label>
+                Endereço opcional
+                <input name="localizacao" placeholder="Cidade, UF" />
+              </label>
+              <button type="submit">Cadastrar unidade</button>
+            </form>
+            <div id="unitList" class="compact-list"></div>
+          </div>
+        </div>
+
+        <div class="settings-grid cx-setup-section-grid">
+          <div id="usuarios" class="panel" data-setup-section="usuarios">
+            <h2>Usuários e permissões</h2>
+            <form id="userForm" class="form">
+              <label>
+                Organização
+                <select name="cliente_id" id="userClientSelect"></select>
+              </label>
+              <label>
+                Nome
+                <input name="nome" placeholder="Nome do usuário" />
+              </label>
+              <label>
+                E-mail
+                <input name="email" type="email" required />
+              </label>
+              <label>
+                Senha provisória
+                <input name="senha" type="password" required minlength="8" autocomplete="new-password" />
+              </label>
+              <label>
+                Função
+                <select name="role">
+                  <option value="admin_cliente">Admin cliente</option>
+                  <option value="operador">Operador</option>
+                  <option value="visualizador">Visualizador</option>
+                </select>
+              </label>
+              <button type="submit">Cadastrar usuário</button>
+            </form>
+            <div id="userList" class="compact-list"></div>
+          </div>
+          <div id="atalhos-maquinas" class="panel" data-setup-section="maquinas">
+            <h2>Atalhos de máquina</h2>
+            <form id="machineConfigForm" class="form">
+              <label>
+                Câmera
+                <select name="camera_id" id="machineCameraSelect"></select>
+              </label>
+              <label>
+                Nome da máquina
+                <input name="nome" required placeholder="Ex.: Máquina principal" />
+              </label>
+              <button type="submit">Criar máquina padrão</button>
+            </form>
+            <div id="machineConfigList" class="compact-list"></div>
+          </div>
+        </div>
+
+        <section id="cameras" class="panel cx-setup-camera-form-panel" data-setup-section="cameras">
+        <h2>Câmeras RTSP</h2>
+        <form id="cameraForm" class="form">
+          <label>
+            Nome da câmera
+            <input name="nome" required placeholder="Ex.: Máquina Principal" />
+          </label>
+          <div class="grid">
+            <label>
+              Unidade
+              <select name="unidade_id" id="cameraUnitSelect" required></select>
+            </label>
+            <label>
+              Campex Edge
+              <select name="edge_id" id="cameraEdgeSelect" required>
+                <option value="">Carregando Edges...</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            URL RTSP completa <span class="muted">(opcional)</span>
+            <input name="rtsp_url" placeholder="rtsp://usuario:senha@host:554/caminho" />
+          </label>
+
+          <div class="separator">ou informe os dados separadamente</div>
+
+          <div class="grid">
+            <label>
+              IP ou host
+              <input name="host" placeholder="192.168.1.20" />
+            </label>
+            <label>
+              Porta RTSP
+              <input name="porta_rtsp" type="number" min="1" max="65535" value="554" />
+            </label>
+            <label>
+              Caminho RTSP
+              <input name="caminho_rtsp" placeholder="/cam/realmonitor?channel=1&subtype=0" />
+            </label>
+          </div>
+
+          <div class="grid">
+            <label>
+              Usuário
+              <input name="usuario" autocomplete="username" />
+            </label>
+            <label>
+              Senha
+              <input name="senha" type="password" autocomplete="current-password" />
+            </label>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="testButton" hidden>Testar conexão</button>
+            <button type="button" id="liveViewButton" hidden>Abrir Live View</button>
+            <button type="submit">Adicionar câmera</button>
+          </div>
+          <label class="sound-toggle">
+            <input name="ativa" type="checkbox" checked />
+            Ativar câmera no Edge após salvar
+          </label>
+        </form>
+        </section>
+
+      <section class="panel cx-setup-result-panel" data-setup-section="cameras">
+        <h2>Status da configuração</h2>
+        <div id="result" class="result muted">Preencha os dados da câmera para enviar a configuração ao Campex Edge.</div>
+      </section>
+
+      <section class="panel cx-setup-health-panel" data-setup-section="entregas">
+        <h2>Saúde da instalação</h2>
+        <div id="systemHealth" class="result muted">Carregando saúde da instalação...</div>
+        <h2>Checklist do piloto</h2>
+        <div id="pilotChecklist" class="result muted">Carregando checklist...</div>
+      </section>
+
+      <section class="panel cx-setup-camera-list-panel" data-setup-section="cameras">
+        <h2>Câmeras cadastradas</h2>
+        <div id="cameraList" class="camera-list"></div>
+      </section>
+
+      <section class="panel viewer cx-setup-viewer-panel" data-setup-section="cameras">
+        <div class="viewer-header">
+          <div>
+            <h2 id="viewerTitle">Nenhuma câmera aberta</h2>
+            <p id="viewerClock" class="muted">--</p>
+          </div>
+          <span id="viewerStatus" class="badge offline">Offline</span>
+        </div>
+        <div id="viewerStage" class="viewer-stage">
+          <div id="viewerMessage">Selecione “Abrir câmera” em uma câmera cadastrada.</div>
+          <img id="liveImage" alt="Transmissão ao vivo" />
+          <canvas id="areaCanvas"></canvas>
+        </div>
+        <div class="viewer-meta">
+          <span>Resolução: <strong id="viewerResolution">indisponível</strong></span>
+          <span>FPS: <strong id="viewerFps">indisponível</strong></span>
+          <span>Último frame: <strong id="viewerLastFrame">nunca</strong></span>
+          <span>IA: <strong id="viewerAiStatus">inativa</strong></span>
+          <span>Pessoas: <strong id="viewerPeopleCount">0</strong></span>
+          <span>Área: <strong id="viewerAreaName">nenhuma</strong></span>
+          <span>Estado: <strong id="viewerAreaState">livre</strong></span>
+          <span>Dentro: <strong id="viewerAreaPeople">0</strong></span>
+          <span>IDs: <strong id="viewerAreaIds">-</strong></span>
+          <span>Máquina: <strong id="viewerMachineState">indisponível</strong></span>
+          <span>Movimento: <strong id="viewerMachineMotion">-</strong></span>
+        </div>
+        <div class="actions viewer-actions">
+          <button type="button" id="startAnalysisButton">Ligar análise futura</button>
+          <button type="button" id="stopAnalysisButton">Desligar análise futura</button>
+          <button type="button" id="createAreaButton">Preparar área</button>
+          <button type="button" id="undoAreaPointButton">Desfazer ponto</button>
+          <button type="button" id="saveAreaButton">Salvar área</button>
+          <button type="button" id="cancelAreaButton">Cancelar</button>
+          <button type="button" id="createMachineButton">Preparar máquina</button>
+          <button type="button" id="nextMachineZoneButton">Próxima zona</button>
+          <button type="button" id="saveMachineButton">Salvar máquina</button>
+        </div>
+        <div id="areaList" class="area-list"></div>
+        <div id="machineList" class="area-list"></div>
+      </section>
+
+      <section class="panel cx-setup-operations-panel" data-setup-section="entregas">
+        <h2>Visão geral</h2>
+        <div id="operationsList" class="event-list"></div>
+      </section>
+
+      <section class="panel cx-setup-events-panel" data-setup-section="entregas">
+        <h2>Ocorrências recentes</h2>
+        <div id="activeIncident" class="incident-active muted">Nenhuma ocorrência ativa.</div>
+        <div id="eventList" class="event-list"></div>
+      </section>
+
+      <section class="panel cx-setup-realtime-panel" data-setup-section="entregas">
+        <div class="alert-header">
+          <h2>Alertas em tempo real</h2>
+          <span id="unackedCount" class="badge offline">0 não reconhecidos</span>
+        </div>
+        <label class="sound-toggle">
+          <input id="soundToggle" type="checkbox" />
+          Som ligado
+        </label>
+        <div id="liveAlertList" class="alert-list">
+          <div class="muted">Nenhum alerta recebido agora.</div>
+        </div>
+      </section>
+
+      <section id="destinatarios" class="panel cx-setup-recipients-panel" data-setup-section="destinatarios">
+        <h2>Responsáveis por alertas</h2>
+        <div id="alertSetupStatus" class="result muted">Verificando configuração de alertas...</div>
+        <form id="recipientForm" class="form">
+          <div class="grid">
+            <label>
+              Nome
+              <input name="nome" required placeholder="Ex.: Supervisor" />
+            </label>
+            <label>
+              E-mail
+              <input name="email" type="email" required placeholder="supervisor@empresa.com" />
+            </label>
+            <label>
+              Severidade mínima
+              <select name="severidade_minima">
+                <option value="low">Baixa</option>
+                <option value="medium">Média</option>
+                <option value="high" selected>Alta</option>
+                <option value="critical">Crítica</option>
+              </select>
+            </label>
+            <label>
+              Tipos de evento
+              <input name="event_types" placeholder="Ex.: workstation_unattended, restricted_zone_occupied" />
+            </label>
+          </div>
+          <div class="grid">
+            <label>
+              Camera ID opcional
+              <input name="camera_id" placeholder="Vazio = todas" />
+            </label>
+            <label>
+              Área ID opcional
+              <input name="area_id" placeholder="Vazio = todas" />
+            </label>
+            <label>
+              Ativo
+              <select name="ativo">
+                <option value="true" selected>Sim</option>
+                <option value="false">Não</option>
+              </select>
+            </label>
+          </div>
+          <div class="actions">
+            <button type="submit">Cadastrar responsável</button>
+          </div>
+        </form>
+        <div id="recipientList" class="recipient-list"></div>
+      </section>
+
+      <section id="entregas" class="panel cx-setup-deliveries-panel" data-setup-section="entregas">
+        <h2>Entregas de e-mail</h2>
+        <div id="deliveryList" class="delivery-list"></div>
+      </section>
+        </div>
+      </section>
+    </main>
+    <script src="shell.js?v=campex-settings-v1-20260821" onerror="this.onerror=null;this.src='shell.js'"></script>
+    <script src="app.js?v=campex-settings-v1-20260902" onerror="this.onerror=null;this.src='app.js'"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+services:
+  campex-edge:
+    build: .
+    container_name: campex-edge
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      DATABASE_PATH: /app/data/visual_ops_product.sqlite3
+    ports:
+      - "8000:8000"
+    volumes:
+      - campex-data:/app/data
+      - campex-evidence:/app/data/evidence
+      - campex-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 20s
+
+volumes:
+  campex-data:
+  campex-evidence:
+  campex-logs:

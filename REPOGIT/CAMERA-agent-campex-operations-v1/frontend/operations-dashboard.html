@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Campex Operations Dashboard</title>
+    <script>document.write('<base href="'+((location.protocol==='file:'||location.pathname.endsWith('.html')||location.pathname.startsWith('/static/')||/(^|\/)(operation\/)?frontend\/?$/.test(location.pathname))?'./':'/static/')+'">');</script>
+    <link rel="stylesheet" href="styles.css?v=campex-home-state-20260728" onerror="this.onerror=null;this.href='styles.css'" />
+  </head>
+  <body>
+    <main class="shell live-shell">
+      <section class="panel">
+        <div class="header">
+          <div>
+            <h1>Campex Operations</h1>
+            <p>Dashboard operacional do piloto industrial</p>
+          </div>
+          <span id="dashboardUpdated" class="badge">Atualizando</span>
+        </div>
+        <div class="grid">
+          <label>
+            Período
+            <select id="periodFilter">
+              <option value="today">Hoje</option>
+              <option value="24h" selected>Últimas 24 horas</option>
+              <option value="7d">Últimos 7 dias</option>
+            </select>
+          </label>
+          <label>
+            Câmera
+            <input id="cameraFilter" placeholder="Todas" />
+          </label>
+          <label>
+            Máquina
+            <input id="machineFilter" placeholder="Todas" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Status atual</h2>
+        <div class="operations-status">
+          <div><span>Máquina</span><strong id="currentMachine">SEM SINAL</strong></div>
+          <div><span>Operador</span><strong id="currentOperator">AUSENTE</strong></div>
+          <div><span>Pessoas</span><strong id="currentPeople">0</strong></div>
+          <div><span>Câmera</span><strong id="currentCamera">offline</strong></div>
+        </div>
+      </section>
+
+      <section class="operations-cards">
+        <div class="panel metric-card"><span>Tempo monitorado</span><strong id="metricTotal">0h</strong></div>
+        <div class="panel metric-card"><span>Tempo ativo</span><strong id="metricActive">0h</strong></div>
+        <div class="panel metric-card"><span>Tempo parado</span><strong id="metricStopped">0h</strong></div>
+        <div class="panel metric-card"><span>Disponibilidade</span><strong id="metricAvailability">0%</strong></div>
+        <div class="panel metric-card"><span>Paradas</span><strong id="metricStops">0</strong></div>
+        <div class="panel metric-card"><span>Maior parada</span><strong id="metricBiggestStop">0min</strong></div>
+        <div class="panel metric-card"><span>Ativa sem operador</span><strong id="metricActiveNoOperator">0min</strong></div>
+      </section>
+
+      <section class="panel">
+        <h2>Linha do tempo</h2>
+        <div id="timeline" class="timeline"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Eventos recentes</h2>
+        <div id="operationsEvents" class="event-list"></div>
+      </section>
+    </main>
+    <script src="operations-dashboard.js" onerror="this.onerror=null;this.src='operations-dashboard.js'"></script>
+  </body>
+</html>

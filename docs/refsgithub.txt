@@ -1,0 +1,8 @@
+https://github.com/roboflow/rf-detr
+https://github.com/FoundationVision/ByteTrack
+https://github.com/blakeblackshear/frigate
+https://github.com/facebookresearch/segment-anything
+https://github.com/open-mmlab/mmaction2
+https://github.com/open-mmlab/mmdetection3d
+
+OpenCV Motion Engine → RF-DETR Nano → ByteTrack, com Frigate como referência de engenharia 24/7.

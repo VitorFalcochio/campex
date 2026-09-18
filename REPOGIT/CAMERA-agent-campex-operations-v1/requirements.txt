@@ -1,0 +1,11 @@
+opencv-python>=4.10,<5
+numpy>=1.26,<3
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+psutil>=5.9,<8
+httpx>=0.27,<1
+openai>=1.40,<2
+psycopg[binary]>=3.2,<4
+ultralytics>=8.3,<9
+pytest>=8,<9
+playwright>=1.60,<2

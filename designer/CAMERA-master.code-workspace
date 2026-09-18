@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"name": "CAMERA-master",
+			"path": ".."
+		},
+		{
+			"name": "ByteTrack-main",
+			"path": "../../ByteTrack-main"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "CAMERA-master"
+	}
+}

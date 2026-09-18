@@ -1,0 +1,267 @@
+# Architectural Analysis: GitHub Repos for CAMPEX Enhancement
+
+## 1. Frigate — Motion-Gated Detection & Multi-Process Pipeline
+*(blakeblackshear/frigate — primary engineering reference)*
+
+### 1.1 Motion Detection as Compute Gate
+Frigate's `ImprovedMotionDetector` runs on **every frame** at reduced resolution (default `frame_height=100` px) to decide whether to invoke the expensive object detector. Detection only runs when motion is found.
+
+Key optimizations applied:
+- **Downsampled grayscale processing**: Frame resized to ~100px height; motion computed on a low-res representation.
+- **Running average background model**: `cv2.accumulateWeighted` with configurable `frame_alpha` (default 0.01) — fast, single-pass background subtraction.
+- **Contrast enhancement**: Adaptive percentile-based contrast (4th/96th percentile) prevents false motion from lighting changes.
+- **Gaussian blur**: `sigma=1` with configurable radius reduces noise before thresholding.
+- **Lightning/IR rejection**: If motion covers >80% of frame area, recalibrates (skips detection).
+- **Calibration phase**: First ~10 frames used to build baseline; `calibrating=True` until motion is <5% of frame area.
+- **Masking support**: Optional ROI masks prevent detection zones (e.g., trees, road) from triggering.
+
+**CAMPEX implication**: The existing `MotionDetector` already implements frame differencing. Frigate's contrast enhancement and lightning-rejection are direct upgrades to adopt. The current 5 FPS rate-limiting (`settings.vision_fps`) is a coarse gate; motion detection before detection is more granular — only skip inference when no motion, rather than rate-limiting all frames.
+
+### 1.2 Region-Based Detection (Spatial Pruning)
+Frigate does **not** run object detection on the full frame. Instead:
+1. Motion boxes are clustered into candidate regions.
+2. Tracked object boxes from the previous frame are also added as regions.
+3. Stationary objects (>threshold frames of no movement) are excluded from region generation.
+4. Each region is run through the object detector independently.
+
+This reduces computational load by orders of magnitude in typical surveillance scenes (most pixels are static).
+
+**CAMPEX implication**: Current implementation runs detection on the full frame every time motion is detected. Region-based detection would cut inference time significantly, especially for wide-angle cameras.
+
+### 1.3 Multi-Process Architecture
+Frigate uses a strict multi-process design:
+- **CameraCapture process** (high priority): Reads frames from ffmpeg and puts them into a shared-memory frame queue.
+- **CameraTracker process**: Pulls frames, runs motion detection, calls remote detector, runs tracking.
+- **Detector process** (shared across cameras): A pool of detector workers pulls from a global detection queue. A single GPU/CPU detector serves multiple cameras.
+
+Shared memory (`SharedMemoryFrameManager`) provides zero-copy frame passing between processes.
+
+**CAMPEX implication**: Current CAMPEX runs everything in a single thread within `VisionEngine._run()`. For 1 camera at 5 FPS, this is fine. For 10+ cameras, the detector singleton should be shared across camera sessions (which it already is via `_get_detector()`), but inference could be offloaded to a dedicated thread/process to avoid blocking frame capture.
+
+### 1.4 Tracker Integration — Norfair
+Frigate uses `norfair` (not ByteTrack) as its tracker backend. Key architectural observations:
+- **Per-class trackers**: Each object class (car, person, etc.) gets its own `norfair.Tracker` instance with class-specific Kalman filter parameters (`R=3.4, Q=0.03` for cars; `R=4.5, Q=0.25` for persons).
+- **Custom distance function**: Uses a normalized distance metric based on bounding box position (bottom center) and size ratios, relative to object dimensions — not raw IoU.
+- **Initialization delay**: New tracks require `min_initialized` consecutive frames (default: 3) before becoming active.
+- **Hit counter max**: Tracks survive `max_disappeared` (default: 15) frames without a detection before being removed.
+- **ReID for occlusion**: PTZ autotracking uses histogram-based re-identification to recover objects after occlusion.
+
+**CAMPEX implication**: The `ByteTrackAdapter` already implements per-class trackers (via `trackers` package). Frigate's approach of per-class Kalman filter tuning is not directly applicable since ByteTrack manages its own filter, but the concept of class-specific tracker parameters is worth considering if custom tuning is needed.
+
+### 1.5 Stationary Object Management
+Frigate tracks whether objects are moving:
+- `motionless_count` increments when an object's position doesn't change beyond a threshold.
+- `StationaryMotionClassifier` uses crop histogram comparison to distinguish true stationary vs. occluded objects.
+- Stationary objects don't trigger new detection regions (they're "seeded" from tracking).
+- Configurable `max_frames` per object type removes stationary objects after a grace period.
+
+**CAMPEX implication**: This is a future enhancement. For event generation, stationary → moving transitions are important (e.g., person starts walking). The current CAMPEX pipeline doesn't track motion state, which limits event richness.
+
+---
+
+## 2. ByteTrack — Tracking Algorithm
+*(FoundationVision/ByteTrack — already integrated via `trackers` package)*
+
+### 2.1 Core Algorithm
+ByteTrack's key innovation is **associating every detection box, including low-confidence ones**:
+
+1. **Step 1 — High-score association**: Match existing tracks to high-confidence detections (≥ `high_conf_det_threshold`, default 0.6) using IoU distance + Hungarian algorithm.
+2. **Step 2 — Low-score association**: Match remaining unmatched tracks to low-confidence detections using pure motion similarity (IoU distance only).
+3. **Step 3 — Unconfirmed tracks**: Newly created tracks (not yet confirmed) are matched against remaining detections with higher threshold (0.7).
+4. **Step 4 — New track initialization**: Unmatched high-confidence detections spawn new tracklets.
+
+### 2.2 Kalman Filter
+- State vector: `[x, y, a, h, vx, vy, va, vh]` (center x/y, aspect ratio, height, and their velocities).
+- Standard constant-velocity model with tuned process/measurement noise.
+- Prediction step runs on all tracks before association.
+
+### 2.3 Track Lifecycle
+- Tracks start **unconfirmed**: require `minimum_consecutive_frames` (default 2) consecutive successful matches before activation.
+- **Lost tracks**: unmatched tracks are kept for `lost_track_buffer` frames (default 30 at 30 FPS) before removal.
+- **Track ID**: assigned at activation, persists for the track's lifetime.
+
+**CAMPEX implication**: The `ByteTrackAdapter` correctly wraps this. The `minimum_consecutive_frames=1` setting means tracks activate after 2 consecutive detections (first creates the tracklet, second confirms). Setting the default to `minimum_consecutive_frames=1` provides faster track activation for the CAMPEX use case.
+
+---
+
+## 3. RF-DETR — Detection
+*(roboflow/rf-detr — already integrated in CAMPEX)*
+
+### 3.1 Model Variants
+| Variant | Size | Params | Use Case |
+|---------|------|--------|----------|
+| RFDETRNano | tiny | ~ | Edge deployment |
+| RFDETRSmall | small | ~ | Balanced speed/accuracy |
+| RFDETRMedium | medium | ~ | Default |
+| RFDETRLarge | large | ~ | High accuracy |
+| RFDETRSeg* | - | - | Instance segmentation variants |
+
+### 3.2 Architecture
+- **Deformable DETR** backbone with **RT-DETR** optimizations.
+- Uses **deformable attention** (sparse attention over multi-scale features) for efficiency.
+- **No NMS required**: DETR-based models predict object queries directly, avoiding NMS post-processing overhead.
+- **ONNX export** support for deployment on various backends.
+
+### 3.3 Deployment
+- RF-DETR supports ONNX export and can run on CPU, GPU, or AI accelerators.
+- Model is loaded once and reused (singleton pattern — already implemented in CAMPEX).
+
+**CAMPEX implication**: The current integration uses `RFDETRNano` on CPU. Frigate's region-based detection would reduce the number of pixels processed, making the Nano model more practical for wide scenes. RF-DETR's segmentation variants could later provide pixel-precise masks for zone-based event generation.
+
+---
+
+## 4. Segment Anything (SAM)
+*(facebookresearch/segment-anything)*
+
+### 4.1 Architecture
+- **Vision Transformer** backbone (ViT-H/L/B variants).
+- **Promptable segmentation**: Accepts points, boxes, or text as prompts.
+- `SamPredictor`: Image encoder (run once per frame) + prompt encoder + mask decoder (per-prompt).
+- `SamAutomaticMaskGenerator`: Generate all masks without prompts (slower, full-image).
+
+### 4.2 Key Design Patterns
+- **Two-stage inference**: `set_image()` encodes the full image once; `predict()` runs on individual prompts. Batching masks by image is efficient.
+- **ONNX export**: Both image encoder and mask decoder can be exported separately.
+- **Modular prompt interface**: Different prompt types (points, boxes, text) feed into the same decoder.
+
+**CAMPEX integration path**: SAM is not suitable for 24/7 real-time detection (heavy ViT-H). But it can serve as a **post-processing step** for specific use cases:
+- After RF-DETR detects objects, pass bounding boxes as prompts to SAM for precise instance masks.
+- Useful for zone-based event generation (pixel-precise object-zone intersection).
+- Can run on-demand (not every frame) — e.g., only when generating events or snapshots.
+
+### 4.3 Alternative: MobileSAM / FastSAM
+For real-time use, lightweight segmentation models exist:
+- **MobileSAM** (MobileNetV3 + SAM decoder): <20ms per image on GPU.
+- **FastSAM** (YOLOv8-seg backbone + SAM-style mask head): Real-time on GPU.
+
+---
+
+## 5. MMDetection3D
+*(open-mmlab/mmdetection3d)*
+
+### 5.1 Architecture
+- **Component-based design**: Backbone → Neck → Head, each pluggable via config.
+- **Multi-modality**: Supports LiDAR point clouds, camera images, or fused inputs.
+- **Plugin system**: New models added as config files + Python classes (no framework changes needed).
+- **Dataset abstraction**: KITTI, nuScenes, Waymo, ScanNet, SUNRGB-D, etc.
+
+### 5.2 Key Patterns
+- **Registry pattern**: Components registered via decorators (`@BACKBONE.register_module()`), instantiated via config.
+- **Config-driven**: YAML-like config files define the entire model + data pipeline.
+- **Unified data pipeline**: `Compose` of transforms applied per-sample.
+
+**CAMPEX integration path**: 3D detection is a future direction for CAMPEX (depth-based or LiDAR-augmented). MMDetection3D's registry pattern is directly applicable — CAMPEX could adopt a similar plugin system for swapping detectors/trackers/segmenters. The config-driven approach also aligns with CAMPEX's settings-based configuration.
+
+For now, MMDetection3D's relevance is architectural: the **registry + config** pattern enables modular model swapping without changing core pipeline code.
+
+---
+
+## 6. MMAction2
+*(open-mmlab/mmaction2)*
+
+### 6.1 Architecture
+- Action recognition (video-level classification) and temporal action detection (when actions occur in a timeline).
+- Supports both 2D CNN (e.g., SlowFast) and 3D CNN (e.g., I3D, SlowOnly) backbones.
+- Pipeline: `RawFrameDecode → SampleFrames → ColorAugment → Normalize → FormatShape`.
+
+### 6.2 Key Patterns
+- **Multi-scale temporal sampling**: Samples short clips from long videos (e.g., 32 frames at 1024 resolution for a 10-second action).
+- **Two-stream processing**: Separate RGB + optical flow pathways (though less common with modern transformers).
+- **Action-aware sampling**: For action detection, uses proposal generation + refinement.
+
+**CAMPEX integration path**: MMAction2 is relevant for the **Intelligence Layer** — anomaly detection in object behavior patterns over time. Not for the immediate motion→detection→tracking pipeline. Could provide behavioral models for future anomaly scoring.
+
+---
+
+## 7. Integration Recommendations for CAMPEX
+
+### 7.1 Short-term (Sprint 3+) — Adopt Frigate's Motion Gating
+```
+Current: Camera → MotionDetector → RFDETR → ByteTrack → Overlay
+Proposed: Camera → MotionDetector (with contrast enhancement) → Motion Regions → RFDETR (region-only) → ByteTrack → Overlay
+```
+
+1. **Enhance MotionDetector**:
+   - Add adaptive contrast (4th/96th percentile) like Frigate's `improve_contrast`.
+   - Add lightning/IR rejection (calibrate when >80% of frame is motion).
+   - Process frames at reduced resolution (already done).
+
+2. **Region-based detection**:
+   - When motion is detected, cluster motion boxes into regions.
+   - Run RFDETR only on regions containing motion.
+   - If no motion, skip detection entirely (but still update ByteTrack with empty detections for lost-track recovery).
+
+3. **Multi-camera shared detector**:
+   - The detector is already a singleton. Add a thread-safe inference queue so multiple camera threads submit frames and receive results asynchronously.
+
+### 7.2 Medium-term — Stationary Object Tracking
+Adopt Frigate's stationary object management:
+- Track `motionless_count` per tracked object.
+- After N frames of no movement, mark as "stationary".
+- Don't re-run detection on stationary object regions (only run detection on motion + non-stationary regions).
+- Generate events for stationary→moving transitions.
+
+### 7.3 Long-term — Pluggable Architecture
+Adopt MMDetection3D's **registry pattern**:
+```python
+# config.py
+model_registry = {
+    "detector": "rfdetr.nano",
+    "tracker": "bytetrack",
+    "segmenter": "mobile_sam",  # optional, for zone analysis
+}
+
+# vision/pipeline.py
+detector_cls = DETECTOR_REGISTRY[settings.detector_type]
+tracker_cls = TRACKER_REGISTRY[settings.tracker_type]
+```
+
+This allows swapping:
+- Detectors: RF-DETR ↔ YOLO ↔ D-FINE ↔ ONNX models
+- Trackers: ByteTrack ↔ Norfair ↔ SORT
+- Segmenters: SAM ↔ MobileSAM ↔ FastSAM
+
+### 7.4 Pipeline Data Flow (Target Architecture)
+```
+Camera (RTSP)
+    ↓
+Frame Capture (async, latest-frame buffer)
+    ↓
+Motion Detector (low-res, running average, contrast-enhanced)
+    ↓
+Motion Regions ←→ Tracked Object Regions
+    ↓             (stationary objects seeded, not re-detected)
+Object Detector (region-based, GPU/CPU shared singleton)
+    ↓
+Detections (class, confidence, bbox)
+    ↓
+ByteTrack (per-class, Kalman + two-stage association)
+    ↓
+Tracked Objects (track_id, class, bbox, velocity)
+    ↓
+Event Engine (entry/exit zones, stationary→moving, camera offline)
+    ↓
+Storage (events + metadata, no full video)
+    ↓
+Intelligence Layer (pattern learning, anomaly detection)
+```
+
+### 7.5 Key Engineering Decisions from Frigate
+| Frigate Pattern | CAMPEX Adaptation | Effort |
+|---|---|---|
+| Downsampled motion detection | Already implemented, add contrast enhancement | Low |
+| Region-based detection | Cluster motion boxes, extract ROI, detect on ROI | Medium |
+| Shared detector process | Thread-safe inference queue + async results | Medium |
+| Stationary object management | Track motionless_count, seed stationary objects | Medium |
+| Multi-process frame passing | Shared memory (skip if single-process is sufficient) | Low if not needed |
+| Config-driven model registry | `@registry` decorators for detectors/trackers | Low |
+
+---
+
+## 8. References
+- ByteTrack: Kalman filter + two-stage association (high/low confidence) + lost-track buffer. Already integrated via `trackers` package.
+- Frigate: Motion-gated region detection, multi-process pipeline, stationary management, Norfair tracker. Primary design reference.
+- RF-DETR: Deformable DETR with RT-DETR optimizations, multiple model sizes, ONNX export. Already integrated.
+- SAM: Promptable segmentation, two-stage inference (image encode + prompt decode). Future post-detection step.
+- MMDetection3D: Registry + config-driven modular architecture. Pattern to adopt for plugin system.
+- MMAction2: Temporal action detection, multi-scale sampling. Future intelligence layer component.

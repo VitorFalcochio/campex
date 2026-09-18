@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Campex Diagnóstico Local</title>
+    <script>document.write('<base href="'+((location.protocol==='file:'||location.pathname.endsWith('.html')||location.pathname.startsWith('/static/')||/(^|\/)(operation\/)?frontend\/?$/.test(location.pathname))?'./':'/static/')+'">');</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=campex-local-diagnostics" onerror="this.onerror=null;this.href='styles.css'" />
+  </head>
+  <body class="campex-dashboard">
+    <aside class="cx-sidebar">
+      <div class="cx-sidebar-top">
+        <a class="cx-logo" href="/dashboard" aria-label="Campex">
+          <img src="campex-logo-oficial.png" alt="Campex" onerror="this.onerror=null;this.src='campex-logo-oficial.png'" />
+          <strong>Campex</strong>
+        </a>
+      </div>
+      <nav class="cx-nav cx-nav-grouped" aria-label="Navegação principal">
+        <small>OPERAÇÃO</small>
+        <a href="/dashboard"><span class="cx-nav-icon" data-icon="home"></span>Home</a>
+        <a href="/live-grid"><span class="cx-nav-icon" data-icon="camera"></span>Grade ao vivo</a>
+        <a href="/people-zones"><span class="cx-nav-icon" data-icon="overview"></span>Pessoas e Zonas</a>
+        <hr />
+        <small>SUPORTE</small>
+        <a class="active" href="/local-diagnostics-view"><span class="cx-nav-icon" data-icon="status"></span>Diagnóstico local</a>
+      </nav>
+    </aside>
+    <main class="cx-main app-content">
+      <header class="cx-header cx-topbar">
+        <div>
+          <p>Campex Local</p>
+          <h1>Diagnóstico</h1>
+        </div>
+        <div class="cx-header-tools">
+          <span id="diagnosticsUpdated" class="badge">Atualizando</span>
+        </div>
+      </header>
+      <section class="cx-live-grid-page">
+        <div class="cx-panel-head">
+          <div>
+            <h2>Saúde da instalação</h2>
+            <p>Resumo local sem credenciais, RTSP completo ou segredos.</p>
+          </div>
+        </div>
+        <div id="diagnosticsGrid" class="cx-resource-grid"></div>
+        <section class="cx-home-section">
+          <div class="cx-panel-head">
+            <div>
+              <h2>Última entrega de alerta</h2>
+              <p>Resultado mais recente registrado em alert_deliveries.</p>
+            </div>
+          </div>
+          <pre id="lastDelivery" class="result muted">Carregando...</pre>
+        </section>
+      </section>
+    </main>
+    <script src="shell.js" onerror="this.onerror=null;this.src='shell.js'"></script>
+    <script src="local-diagnostics.js" onerror="this.onerror=null;this.src='local-diagnostics.js'"></script>
+  </body>
+</html>

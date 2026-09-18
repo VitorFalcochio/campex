@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CAMPEX</title>
+    <link rel="icon" href="./assets/simbolo.jpeg" />
+    <link rel="stylesheet" href="./css/tokens.css" />
+    <link rel="stylesheet" href="./css/global.css" />
+    <link rel="stylesheet" href="./css/layout.css" />
+    <link rel="stylesheet" href="./css/components.css" />
+  </head>
+  <body>
+    <div class="app-shell" id="app-shell">
+      <aside class="sidebar" aria-label="Navegacao principal">
+        <div class="sidebar-head">
+          <a class="brand" href="#dashboard" aria-label="CAMPEX inicio">
+            <img src="./assets/campex-logo-white.png" alt="Campex" class="brand-logo" />
+          </a>
+          <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Recolher menu" aria-expanded="true">
+            <i data-lucide="panel-left-close" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <nav class="nav-groups">
+          <section class="nav-group" aria-labelledby="nav-operar">
+            <h2 id="nav-operar">Operar</h2>
+            <a href="#dashboard" data-route="dashboard" title="Painel"><i data-lucide="layout-dashboard" aria-hidden="true"></i><span>Painel</span></a>
+            <a href="#wall" data-route="wall" title="Mural"><i data-lucide="monitor" aria-hidden="true"></i><span>Mural</span></a>
+            <a href="#live" data-route="live" title="Ao vivo"><i data-lucide="cctv" aria-hidden="true"></i><span>Ao vivo</span></a>
+            <a href="#video-analysis" data-route="video-analysis" title="Análise MP4"><i data-lucide="file-video" aria-hidden="true"></i><span>Análise MP4</span></a>
+            <a href="#events" data-route="events" title="Eventos"><i data-lucide="siren" aria-hidden="true"></i><span>Eventos</span></a>
+            <a href="#productivity" data-route="productivity" title="Produtividade"><i data-lucide="factory" aria-hidden="true"></i><span>Produtividade</span></a>
+            <a href="#investigations" data-route="investigations" title="Investigações"><i data-lucide="search-check" aria-hidden="true"></i><span>Investigações</span></a>
+          </section>
+
+          <section class="nav-group" aria-labelledby="nav-gerenciar">
+            <h2 id="nav-gerenciar">Gerenciar</h2>
+            <a href="#cameras" data-route="cameras" title="Câmeras"><i data-lucide="video" aria-hidden="true"></i><span>Câmeras</span></a>
+            <a href="#zones" data-route="zones" title="Áreas e zonas"><i data-lucide="scan-line" aria-hidden="true"></i><span>Áreas & zonas</span></a>
+            <a href="#machines" data-route="machines" title="Máquinas"><i data-lucide="factory" aria-hidden="true"></i><span>Máquinas</span></a>
+            <a href="#rules" data-route="rules" title="Regras"><i data-lucide="sliders-horizontal" aria-hidden="true"></i><span>Regras</span></a>
+          </section>
+
+          <section class="nav-group" aria-labelledby="nav-sistema">
+            <h2 id="nav-sistema">Sistema</h2>
+            <a href="#evidence" data-route="evidence" title="Evidências"><i data-lucide="archive" aria-hidden="true"></i><span>Evidências</span></a>
+            <a href="#diagnostics" data-route="diagnostics" title="Diagnóstico"><i data-lucide="activity" aria-hidden="true"></i><span>Diagnóstico</span></a>
+            <a href="#settings" data-route="settings" title="Configurações"><i data-lucide="settings" aria-hidden="true"></i><span>Configurações</span></a>
+          </section>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Centro de operação visual</p>
+            <h1 id="page-title">Ao vivo</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="connection" id="backend-status" data-state="checking" role="status">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span class="status-text">Verificando backend</span>
+            </div>
+            <button class="account-button" id="account-button" type="button" title="Sair">
+              <i data-lucide="log-out" aria-hidden="true"></i>
+              <span id="account-name">Operador</span>
+            </button>
+          </div>
+        </header>
+
+        <section class="content-stage" id="app-view" aria-live="polite"></section>
+      </main>
+    </div>
+    <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="false"></div>
+
+    <script src="./vendor/lucide.min.js"></script>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
