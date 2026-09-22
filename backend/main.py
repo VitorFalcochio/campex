@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,6 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.cameras import router as cameras_router
+from backend.api.analysis import router as analysis_router
 from backend.api.health import router as health_router
 from backend.api.intelligence import router as intelligence_router
 from backend.api.machines import router as machines_router
@@ -23,6 +25,7 @@ from backend.database.db import initialize_database
 from backend.logging_config import configure_logging
 from backend.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
 from backend.vision.engine import VisionEngine
+from backend.vision.detector import create_detector
 
 
 startup_settings = get_settings()
@@ -41,6 +44,10 @@ async def lifespan(app_instance: FastAPI):
     vision_engine = VisionEngine(settings, manager)
     app_instance.state.camera_manager = manager
     app_instance.state.vision_engine = vision_engine
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        video_detector = create_detector(settings)
+        video_detector.load()
+        app_instance.state.video_detector = video_detector
     logger.info(
         "CAMPEX started",
         extra={
@@ -98,6 +105,7 @@ async def api_token_guard(request: Request, call_next):
     return await call_next(request)
 
 app.include_router(health_router)
+app.include_router(analysis_router)
 app.include_router(cameras_router)
 app.include_router(vision_router)
 app.include_router(videos_router)

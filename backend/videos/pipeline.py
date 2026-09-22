@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -8,8 +7,8 @@ from typing import Any
 import cv2
 
 from backend.config import Settings
+from backend.operations.video_intelligence import CampexOperationalEngine
 from backend.vision.detector import VisionDetector
-from backend.vision.models import TrackedObject
 from backend.vision.tracker import ByteTrackTracker, ObjectTracker
 from backend.videos.models import VideoMetadata
 
@@ -77,17 +76,41 @@ class VideoAnalysisPipeline:
             minimum_consecutive_frames=1,
         )
 
-    def analyze(self, path: Path, original_name: str, progress_callback=None) -> dict[str, Any]:
+    def analyze(
+        self,
+        path: Path,
+        original_name: str,
+        progress_callback=None,
+        debug_output_path: Path | None = None,
+    ) -> dict[str, Any]:
         source = FileVideoSource(path, original_name)
         detections_out: list[dict[str, Any]] = []
-        events: list[dict[str, Any]] = []
-        tracks: dict[int, dict[str, Any]] = {}
-        last_positions: dict[int, tuple[float, float, float]] = {}
-        active_track_ids: set[int] = set()
         started_at = datetime.now(timezone.utc)
+        debug_writer: cv2.VideoWriter | None = None
+        debug_video_path: Path | None = None
 
         try:
             metadata = source.open()
+            if debug_output_path is not None:
+                debug_output_path.parent.mkdir(parents=True, exist_ok=True)
+                debug_writer = cv2.VideoWriter(
+                    str(debug_output_path),
+                    cv2.VideoWriter_fourcc(*"mp4v"),
+                    max(1.0, float(self.settings.video_analysis_fps)),
+                    (metadata.width, metadata.height),
+                )
+                if debug_writer.isOpened():
+                    debug_video_path = debug_output_path
+                else:
+                    debug_writer.release()
+                    debug_writer = None
+            operational = CampexOperationalEngine(
+                self.settings,
+                camera_id="uploaded_video",
+                zones=[],
+                frame_width=metadata.width,
+                frame_height=metadata.height,
+            )
             if progress_callback:
                 progress_callback(5, source=metadata.as_dict())
             for frame_index, timestamp_seconds, frame in source.frames(self.settings.video_analysis_fps):
@@ -103,127 +126,166 @@ class VideoAnalysisPipeline:
                             "timestamp": round(timestamp_seconds, 3),
                         }
                     )
-                _update_tracks(tracks, events, last_positions, active_track_ids, objects, timestamp_seconds)
+                operational.process(objects, timestamp_dt)
+                if debug_writer is not None:
+                    debug_frame = _draw_debug_frame(
+                        frame,
+                        operational.debug_tracks(objects, timestamp_dt),
+                        {
+                            "title": "CAMPEX VISION DEBUG",
+                            "video_time": timestamp_seconds,
+                            "duration": metadata.duration_seconds,
+                            "fps_original": metadata.fps,
+                            "fps_analysis": self.settings.video_analysis_fps,
+                            "visible": operational.people_visible,
+                            "tracks_active": len(objects),
+                            "moving": sum(
+                                1
+                                for item in operational.debug_tracks(objects, timestamp_dt)
+                                if item["movement_state"] == "MOVING"
+                            ),
+                            "stationary": sum(
+                                1
+                                for item in operational.debug_tracks(objects, timestamp_dt)
+                                if item["movement_state"] == "STATIONARY"
+                            ),
+                            "events": len(operational.events),
+                            "detector": self.detector.name,
+                            "model": getattr(self.detector, "model_name", None) or "-",
+                            "device": self.detector.device.lower(),
+                            "fallback": getattr(self.detector, "fallback_used", False),
+                            "tracker": self.tracker.name,
+                        },
+                    )
+                    debug_writer.write(debug_frame)
                 if metadata.frame_count:
                     progress = min(90, 5 + int((frame_index / metadata.frame_count) * 85))
                     if progress_callback:
                         progress_callback(progress)
-            _close_open_tracks(tracks, events, active_track_ids, metadata.duration_seconds)
-            metrics = _build_metrics(metadata, tracks, events, detections_out)
+            operational.close(started_at + timedelta(seconds=metadata.duration_seconds))
+            result = operational.as_result(metadata.as_dict())
+            metrics = result["metrics"]
+            metrics.setdefault("summary", {})
+            metrics["summary"]["total_detections"] = len(detections_out)
+            metrics["summary"]["unique_objects"] = metrics["summary"].get("unique_people", 0)
+            runtime = {
+                "detector": self.detector.name,
+                "model": getattr(self.detector, "model_name", None),
+                "device": self.detector.device.lower(),
+                "fallback": bool(getattr(self.detector, "fallback_used", False)),
+                "tracker": self.tracker.name,
+                "analysis_fps": self.settings.video_analysis_fps,
+                "original_fps": metadata.fps,
+                "input_resolution": getattr(self.detector, "input_resolution", None),
+                "debug_overlay": debug_video_path is not None,
+            }
             return {
                 "source": metadata.as_dict(),
                 "detections": detections_out[-500:],
-                "tracks": list(tracks.values()),
-                "events": events,
+                "tracks": result["tracks"],
+                "events": result["events"],
+                "timeline": result["timeline"],
                 "metrics": metrics,
-                "operational_context": {
-                    "schema": "campex_video_operational_context.v1",
-                    "source": metadata.as_dict(),
-                    "metrics": metrics,
-                    "summary": metrics["summary"],
-                    "movement": metrics["movement"],
-                    "timeline": events[:200],
-                },
+                "runtime": runtime,
+                "debug_video_path": str(debug_video_path) if debug_video_path else None,
+                "operational_context": result["operational_context"],
             }
         finally:
+            if debug_writer is not None:
+                debug_writer.release()
             source.close()
 
 
-def _update_tracks(
-    tracks: dict[int, dict[str, Any]],
-    events: list[dict[str, Any]],
-    last_positions: dict[int, tuple[float, float, float]],
-    active_track_ids: set[int],
-    objects: list[TrackedObject],
-    timestamp: float,
-) -> None:
-    seen_now = set()
-    for obj in objects:
-        seen_now.add(obj.track_id)
-        bbox = obj.bounding_box.as_list()
-        cx = (bbox[0] + bbox[2]) / 2
-        cy = (bbox[1] + bbox[3]) / 2
-        track = tracks.get(obj.track_id)
-        if track is None:
-            track = {
-                "track_id": obj.track_id,
-                "class": obj.class_name,
-                "first_timestamp": round(timestamp, 3),
-                "last_timestamp": round(timestamp, 3),
-                "duration_seconds": 0.0,
-                "confidence": obj.confidence,
-                "positions": [],
-                "state": "active",
-            }
-            tracks[obj.track_id] = track
-            active_track_ids.add(obj.track_id)
-            events.append(_event("PERSON_ENTERED" if obj.class_name == "person" else "OBJECT_ENTERED", obj.track_id, timestamp))
-        previous = last_positions.get(obj.track_id)
-        if previous:
-            px, py, previous_ts = previous
-            distance = ((cx - px) ** 2 + (cy - py) ** 2) ** 0.5
-            elapsed = max(0.001, timestamp - previous_ts)
-            moving = distance / elapsed > 8.0
-            if moving and track.get("movement_state") != "moving":
-                events.append(_event("PERSON_STARTED_MOVING", obj.track_id, timestamp))
-                track["movement_state"] = "moving"
-            elif not moving and track.get("movement_state") == "moving":
-                events.append(_event("PERSON_STOPPED", obj.track_id, timestamp))
-                track["movement_state"] = "stopped"
-        last_positions[obj.track_id] = (cx, cy, timestamp)
-        track["last_timestamp"] = round(timestamp, 3)
-        track["duration_seconds"] = round(timestamp - track["first_timestamp"], 3)
-        track["confidence"] = max(track["confidence"], obj.confidence)
-        if len(track["positions"]) < 25:
-            track["positions"].append({"timestamp": round(timestamp, 3), "bbox": bbox})
-
-    disappeared = active_track_ids - seen_now
-    for track_id in list(disappeared):
-        track = tracks.get(track_id)
-        if track and track["state"] == "active":
-            track["state"] = "inactive"
-            events.append(_event("PERSON_LEFT" if track["class"] == "person" else "OBJECT_LEFT", track_id, timestamp))
-        active_track_ids.discard(track_id)
+def _draw_debug_frame(frame, tracks: list[dict[str, Any]], panel: dict[str, Any]):
+    output = frame.copy()
+    for item in tracks:
+        x1, y1, x2, y2 = [int(value) for value in item["bbox"]]
+        state = item["movement_state"]
+        color = (0, 220, 80)
+        if state == "STATIONARY":
+            color = (0, 190, 255)
+        elif state == "POTENTIAL_STATIONARY":
+            color = (0, 230, 230)
+        elif state == "UNKNOWN":
+            color = (180, 180, 180)
+        cv2.rectangle(output, (x1, y1), (x2, y2), color, 2)
+        label_state = state
+        if state in {"STATIONARY", "POTENTIAL_STATIONARY"}:
+            label_state = f"{state} {_format_mmss(item['state_seconds'])}"
+        label = (
+            f"PERSON #{item['track_id']} | {label_state} | "
+            f"{item['confidence'] * 100:.0f}%"
+        )
+        zone = item.get("zone")
+        if zone:
+            label = f"{label} | ZONE: {zone}"
+        _draw_label(output, label, x1, max(18, y1 - 8), color)
+        trajectory = item.get("trajectory") or []
+        for first, second in zip(trajectory, trajectory[1:]):
+            cv2.line(
+                output,
+                (int(first["x"]), int(first["y"])),
+                (int(second["x"]), int(second["y"])),
+                color,
+                2,
+                cv2.LINE_AA,
+            )
+        if trajectory:
+            last = trajectory[-1]
+            cv2.circle(output, (int(last["x"]), int(last["y"])), 4, color, -1)
+    _draw_panel(output, panel)
+    return output
 
 
-def _close_open_tracks(tracks: dict[int, dict[str, Any]], events: list[dict[str, Any]], active_track_ids: set[int], timestamp: float) -> None:
-    for track_id in list(active_track_ids):
-        track = tracks.get(track_id)
-        if track:
-            track["state"] = "inactive"
-            events.append(_event("PERSON_LEFT" if track["class"] == "person" else "OBJECT_LEFT", track_id, timestamp))
-    events.append({"event_type": "VIDEO_FINISHED", "timestamp": round(timestamp, 3), "metadata": {}})
+def _draw_label(frame, text: str, x: int, y: int, color) -> None:
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    scale = 0.55
+    thickness = 1
+    (width, height), _ = cv2.getTextSize(text, font, scale, thickness)
+    cv2.rectangle(
+        frame,
+        (x, max(0, y - height - 8)),
+        (min(frame.shape[1] - 1, x + width + 10), y + 4),
+        (0, 0, 0),
+        -1,
+    )
+    cv2.putText(frame, text, (x + 5, y - 3), font, scale, color, thickness, cv2.LINE_AA)
 
 
-def _build_metrics(metadata: VideoMetadata, tracks: dict[int, dict[str, Any]], events: list[dict[str, Any]], detections: list[dict[str, Any]]) -> dict[str, Any]:
-    by_class = defaultdict(int)
-    for track in tracks.values():
-        by_class[track["class"]] += 1
-    return {
-        "source": metadata.as_dict(),
-        "summary": {
-            "unique_people": by_class.get("person", 0),
-            "unique_objects": len(tracks),
-            "total_detections": len(detections),
-            "total_events": len(events),
-        },
-        "movement": {
-            "moving_events": sum(1 for event in events if event["event_type"].endswith("STARTED_MOVING")),
-            "stopped_events": sum(1 for event in events if event["event_type"].endswith("STOPPED")),
-            "average_track_duration_seconds": round(
-                sum(track["duration_seconds"] for track in tracks.values()) / max(1, len(tracks)),
-                3,
-            ),
-        },
-        "zones": {},
-        "timeline": events[:200],
-    }
+def _draw_panel(frame, panel: dict[str, Any]) -> None:
+    rows = [
+        panel["title"],
+        f"Video: {_format_mmss(panel['video_time'])} / {_format_mmss(panel['duration'])}",
+        f"FPS original: {panel['fps_original']:.2f}",
+        f"FPS analise: {panel['fps_analysis']:.2f}",
+        f"Visible: {panel['visible']} | Tracks ativos: {panel['tracks_active']}",
+        f"Moving: {panel['moving']} | Stationary: {panel['stationary']}",
+        f"Eventos: {panel['events']}",
+        f"Detector: {panel['detector']}",
+        f"Model: {panel.get('model') or '-'}",
+        f"Device: {panel['device']} | Fallback: {str(panel['fallback']).lower()}",
+        f"Tracker: {panel['tracker']}",
+    ]
+    x, y = 16, 24
+    width = 430
+    height = 26 + len(rows) * 22
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (8, 8), (8 + width, 8 + height), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.68, frame, 0.32, 0, frame)
+    for index, row in enumerate(rows):
+        color = (255, 255, 255) if index else (0, 255, 180)
+        cv2.putText(
+            frame,
+            row,
+            (x, y + index * 22),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            color,
+            1,
+            cv2.LINE_AA,
+        )
 
 
-def _event(event_type: str, track_id: int, timestamp: float) -> dict[str, Any]:
-    return {
-        "event_type": event_type,
-        "track_id": track_id,
-        "timestamp": round(timestamp, 3),
-        "metadata": {},
-    }
+def _format_mmss(seconds: float) -> str:
+    total = max(0, int(seconds))
+    return f"{total // 60:02d}:{total % 60:02d}"

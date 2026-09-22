@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import httpx
 
@@ -26,6 +27,7 @@ class NemotronClient:
         self.temperature = settings.nemotron_temperature
         self.top_p = settings.nemotron_top_p
         self.max_tokens = settings.nemotron_max_tokens
+        self.max_retries = 2
 
     def chat(self, messages: list[dict[str, str]]) -> str:
         if not self.api_key:
@@ -44,17 +46,39 @@ class NemotronClient:
             "Content-Type": "application/json",
         }
         url = f"{self.base_url}/chat/completions"
-        try:
-            response = httpx.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self.timeout_seconds,
-            )
-        except httpx.TimeoutException as exc:
-            raise IntelligenceTimeoutError("Nemotron request timed out.") from exc
-        except httpx.HTTPError as exc:
-            raise IntelligenceProviderUnavailableError("Nemotron request failed.") from exc
+        response = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = httpx.post(
+                    url,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout_seconds,
+                )
+            except httpx.TimeoutException as exc:
+                if attempt >= self.max_retries:
+                    raise IntelligenceTimeoutError("Nemotron request timed out.") from exc
+                logger.warning("[CAMPEX][NEMOTRON] timeout; retrying", extra={"attempt": attempt + 1})
+                time.sleep(0.5 * (attempt + 1))
+                continue
+            except httpx.HTTPError as exc:
+                if attempt >= self.max_retries:
+                    raise IntelligenceProviderUnavailableError("Nemotron request failed.") from exc
+                logger.warning("[CAMPEX][NEMOTRON] HTTP error; retrying", extra={"attempt": attempt + 1})
+                time.sleep(0.5 * (attempt + 1))
+                continue
+
+            if response.status_code in {429, 500, 502, 503, 504} and attempt < self.max_retries:
+                logger.warning(
+                    "[CAMPEX][NEMOTRON] transient response; retrying",
+                    extra={"status_code": response.status_code, "attempt": attempt + 1},
+                )
+                time.sleep(0.5 * (attempt + 1))
+                continue
+            break
+
+        if response is None:
+            raise IntelligenceProviderUnavailableError("Nemotron request failed.")
 
         if response.status_code == 429:
             raise IntelligenceRateLimitError("Nemotron rate limit reached.")

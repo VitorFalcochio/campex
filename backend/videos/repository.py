@@ -116,6 +116,10 @@ def _row(row) -> dict[str, Any]:
         "tracks": _decode(row["tracks_json"], []),
         "detections": _decode(row["detections_json"], []),
         "insight": _decode(row["insight_json"], None),
+        "debug_video_path": row["debug_video_path"] if "debug_video_path" in row.keys() else None,
+        "debug_video": _debug_video(row),
+        "runtime": _decode(row["runtime_json"], None) if "runtime_json" in row.keys() else None,
+        "ai": _decode(row["ai_json"], None) if "ai_json" in row.keys() else None,
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
         "completed_at": row["completed_at"],
@@ -124,3 +128,12 @@ def _row(row) -> dict[str, Any]:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _debug_video(row) -> dict[str, Any] | None:
+    if "debug_video_path" not in row.keys() or not row["debug_video_path"]:
+        return None
+    return {
+        "path": row["debug_video_path"],
+        "url": f"/api/v1/videos/{row['id']}/debug-video",
+    }

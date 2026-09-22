@@ -127,6 +127,9 @@ SCHEMA_STATEMENTS = (
         tracks_json TEXT,
         detections_json TEXT,
         insight_json TEXT,
+        debug_video_path TEXT,
+        runtime_json TEXT,
+        ai_json TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         completed_at TEXT
@@ -164,6 +167,7 @@ def initialize_database(settings: Settings) -> Path:
         _migrate_camera_source_types(connection)
         _migrate_camera_runtime_state(connection)
         _migrate_organization_scope(connection, settings.intelligence_default_organization_id)
+        _migrate_video_analysis_debug_columns(connection)
         connection.execute(
             """
             INSERT INTO app_meta (key, value, updated_at)
@@ -250,6 +254,21 @@ def _migrate_organization_scope(
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_machines_org_camera ON machines(organization_id, camera_id)"
     )
+
+
+def _migrate_video_analysis_debug_columns(connection: sqlite3.Connection) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(video_analyses)").fetchall()
+    }
+    migrations = {
+        "debug_video_path": "ALTER TABLE video_analyses ADD COLUMN debug_video_path TEXT",
+        "runtime_json": "ALTER TABLE video_analyses ADD COLUMN runtime_json TEXT",
+        "ai_json": "ALTER TABLE video_analyses ADD COLUMN ai_json TEXT",
+    }
+    for column, statement in migrations.items():
+        if column not in columns:
+            connection.execute(statement)
 
 
 def database_is_initialized(settings: Settings) -> bool:

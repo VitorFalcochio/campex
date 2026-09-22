@@ -53,6 +53,7 @@
   updateMachine,
   updateRule,
   updateZone,
+  debugVideoUrl,
   uploadedVideoUrl,
 } from "./api.js";
 import {
@@ -644,21 +645,34 @@ function renderVideoAnalysis(analysis) {
     objectLine(analysis.status, `${analysis.progress || 0}%`, analysis.error || analysis.original_filename),
     objectLine("Fonte", source.duration_seconds ? `${source.duration_seconds.toFixed(1)}s · ${source.width}x${source.height}` : "Aguardando leitura", source.fps ? `${source.fps.toFixed(2)} FPS` : ""),
   ].join("");
+  const runtime = analysis.runtime || {};
+  const ai = analysis.ai || {};
   document.querySelector("#video-analysis-player").innerHTML = analysis.analysis_id
-    ? `<video controls playsinline src="${uploadedVideoUrl(analysis.analysis_id)}"></video>`
+    ? `
+      <video controls playsinline src="${analysis.debug_video ? debugVideoUrl(analysis.analysis_id) : uploadedVideoUrl(analysis.analysis_id)}"></video>
+      ${analysis.debug_video ? objectLine("Vídeo debug", "Overlays CAMPEX ativos", "Arquivo original preservado") : objectLine("Vídeo original", "Ative VIDEO_DEBUG_OVERLAY=true para gerar overlays", "")}
+    `
     : emptyState("Sem vídeo", "O player aparece após o upload.");
   document.querySelector("#video-analysis-metrics").innerHTML = [
-    metricItem("Pessoas únicas", summary.unique_people ?? "-", "IDs temporários de tracking"),
-    metricItem("Objetos únicos", summary.unique_objects ?? "-", "Agregado por track"),
+    metricItem("Pessoas únicas", summary.unique_people ?? metrics.people?.detected ?? "-", "IDs temporários de tracking"),
+    metricItem("Visíveis", metrics.people?.people_visible ?? "-", `Pico ${metrics.people?.max_simultaneous ?? "-"}`),
     metricItem("Detecções", summary.total_detections ?? "-", "Amostragem de frames"),
     metricItem("Eventos", summary.total_events ?? "-", "Derivados do histórico"),
+    metricItem("Moving", `${metrics.activity?.moving_seconds ?? 0}s`, "Tempo acumulado"),
+    metricItem("Stationary", `${metrics.activity?.stationary_seconds ?? 0}s`, `${metrics.activity?.stationary_events ?? 0} eventos`),
+  ].join("");
+  document.querySelector("#video-analysis-status").innerHTML += [
+    objectLine("Detector", runtime.detector || "-", `${runtime.model || "-"} · ${runtime.device || "cpu"}${runtime.fallback ? " · fallback" : ""}`),
+    objectLine("Tracker", runtime.tracker || "-", `FPS análise ${runtime.analysis_fps ?? "-"}`),
+    objectLine("Entrada", runtime.input_resolution ? `${runtime.input_resolution}px` : "-", "Resolução de inferência"),
+    objectLine("IA", ai.status || "pendente", ai.fallback_used ? `Fallback: ${ai.reason || ""}` : (ai.model || "")),
   ].join("");
   const events = analysis.events || [];
   document.querySelector("#video-event-count").textContent = `${events.length} eventos`;
   document.querySelector("#video-analysis-events").innerHTML = events.length
     ? events.slice(0, 80).map((event) => `
       <article class="ops-row">
-        <div><strong>${event.event_type}</strong><span>${formatSeconds(event.timestamp)} · track ${event.track_id ?? "-"}</span></div>
+        <div><strong>${event.event_type}</strong><span>${formatEventTime(event)} · track ${event.track_id ?? "-"}</span></div>
       </article>
     `).join("")
     : emptyState("Sem eventos", "Os eventos aparecem durante ou após o processamento.");
@@ -666,8 +680,8 @@ function renderVideoAnalysis(analysis) {
   document.querySelector("#video-analysis-tracks").innerHTML = tracks.length
     ? tracks.slice(0, 20).map((track) => objectLine(
         `${track.class} #${track.track_id}`,
-        `${track.duration_seconds}s observados · ${(track.confidence * 100).toFixed(0)}%`,
-        track.state
+        `${track.total_visible_seconds ?? track.duration_seconds ?? 0}s observados · ${(track.confidence * 100).toFixed(0)}%`,
+        `${track.movement_state || track.state || "UNKNOWN"} · moving ${track.moving_seconds ?? 0}s · stationary ${track.stationary_seconds ?? 0}s`
       )).join("")
     : emptyState("Sem tracks", "O tracker ainda não confirmou objetos.");
   const insight = analysis.insight || {};
@@ -675,6 +689,15 @@ function renderVideoAnalysis(analysis) {
     ? objectLine("Resumo da operação", insight.summary, (insight.limitations || []).join(" "))
     : emptyState("Aguardando inteligência", "O Nemotron é chamado ao final com métricas agregadas.");
   refreshIcons();
+}
+
+function formatEventTime(event) {
+  if (event.timestamp != null) return formatSeconds(event.timestamp);
+  const raw = event.started_at || "";
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function formatSeconds(value) {
@@ -3202,5 +3225,3 @@ window.addEventListener("keydown", (event) => {
 
 accountButton?.addEventListener("click", handleSignOut);
 startAuthenticatedApp();
-
-

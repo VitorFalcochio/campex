@@ -7,10 +7,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 import sys
+import logging
 
 import numpy as np
 
 from backend.vision.models import BoundingBox, Detection, TrackedObject
+
+
+logger = logging.getLogger("campex.vision.tracker")
 
 
 class ObjectTracker(ABC):
@@ -73,8 +77,25 @@ class ByteTrackTracker(ObjectTracker):
                 best_track_id = self._next_id
                 self._next_id += 1
                 hits = 1
+                logger.debug(
+                    "[CAMPEX][TRACKER] TRACK_CREATED",
+                    extra={
+                        "camera_id": camera_id,
+                        "track_id": best_track_id,
+                        "class_name": detection.class_name,
+                        "confidence": detection.confidence,
+                    },
+                )
             else:
                 hits = self._tracks[best_track_id].hits + 1
+                logger.debug(
+                    "[CAMPEX][TRACKER] TRACK_REASSOCIATED",
+                    extra={
+                        "camera_id": camera_id,
+                        "track_id": best_track_id,
+                        "iou": round(best_score, 4),
+                    },
+                )
 
             self._tracks[best_track_id] = _Track(
                 track_id=best_track_id,
@@ -101,7 +122,19 @@ class ByteTrackTracker(ObjectTracker):
             if track_id in assigned_tracks:
                 continue
             self._tracks[track_id].missed += 1
+            logger.debug(
+                "[CAMPEX][TRACKER] TRACK_LOST",
+                extra={
+                    "camera_id": camera_id,
+                    "track_id": track_id,
+                    "missed": self._tracks[track_id].missed,
+                },
+            )
             if self._tracks[track_id].missed >= self.max_missed:
+                logger.debug(
+                    "[CAMPEX][TRACKER] TRACK_REMOVED",
+                    extra={"camera_id": camera_id, "track_id": track_id},
+                )
                 del self._tracks[track_id]
 
         return objects

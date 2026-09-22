@@ -389,3 +389,7 @@ export function getVideoAnalysisStatus(analysisId) {
 export function uploadedVideoUrl(analysisId) {
   return `${API_BASE_URL}/videos/${analysisId}/video`;
 }
+
+export function debugVideoUrl(analysisId) {
+  return `${API_BASE_URL}/videos/${analysisId}/debug-video`;
+}

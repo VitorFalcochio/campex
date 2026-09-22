@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import re
-import shutil
 import threading
 import uuid
 from pathlib import Path
@@ -16,6 +15,7 @@ from backend.services.intelligence.exceptions import IntelligenceError
 from backend.services.intelligence.models import IntelligenceRequest
 from backend.services.intelligence.service import CampexIntelligenceService
 from backend.vision.detector import create_detector
+from backend.vision.detector import VisionDetector
 from backend.videos.models import AnalysisJob, AnalysisStatus
 from backend.videos.pipeline import InvalidVideoError, VideoAnalysisPipeline
 from backend.videos.repository import VideoAnalysisRepository
@@ -29,8 +29,9 @@ class VideoUploadError(ValueError):
 
 
 class VideoAnalysisService:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, detector: VisionDetector | None = None) -> None:
         self.settings = settings
+        self.detector = detector
         self.repository = VideoAnalysisRepository(settings)
 
     def enqueue_upload(self, upload: UploadFile, organization_id: str) -> dict:
@@ -63,7 +64,7 @@ class VideoAnalysisService:
         self.repository.create(job)
         threading.Thread(
             target=self._run_job,
-            args=(job,),
+            args=(job, self.detector),
             name=f"campex-video-analysis-{analysis_id}",
             daemon=True,
         ).start()
@@ -75,14 +76,20 @@ class VideoAnalysisService:
     def list(self, organization_id: str) -> list[dict]:
         return self.repository.list(organization_id)
 
-    def _run_job(self, job: AnalysisJob) -> None:
+    def _run_job(self, job: AnalysisJob, detector: VisionDetector | None = None) -> None:
         try:
             self.repository.update(job.analysis_id, status=AnalysisStatus.PROCESSING, progress=1)
-            detector = create_detector(self.settings)
+            detector = detector or create_detector(self.settings)
             pipeline = VideoAnalysisPipeline(self.settings, detector)
+            debug_output_path = None
+            if self.settings.video_debug_overlay:
+                debug_output_path = job.storage_path.with_name(
+                    f"{job.analysis_id}-analysis_debug.mp4"
+                )
             result = pipeline.analyze(
                 job.storage_path,
                 job.original_filename,
+                debug_output_path=debug_output_path,
                 progress_callback=lambda progress, **fields: self.repository.update(
                     job.analysis_id,
                     progress=progress,
@@ -98,13 +105,17 @@ class VideoAnalysisService:
                 events_json=result["events"],
                 tracks_json=result["tracks"],
                 detections_json=result["detections"],
+                debug_video_path=result.get("debug_video_path"),
+                runtime_json=result.get("runtime"),
             )
             insight = self._generate_insight(job.organization_id, result["operational_context"])
+            ai = _ai_status_from_insight(insight, self.settings)
             self.repository.update(
                 job.analysis_id,
                 status=AnalysisStatus.COMPLETED,
                 progress=100,
                 insight_json=insight,
+                ai_json=ai,
             )
         except (InvalidVideoError, VideoUploadError) as exc:
             self.repository.update(
@@ -141,7 +152,8 @@ class VideoAnalysisService:
                     context=context,
                 )
             )
-        except IntelligenceError:
+        except IntelligenceError as exc:
+            fallback["ai_error"] = str(exc)
             return fallback
         return {
             "summary": response.answer,
@@ -184,3 +196,19 @@ def _copy_limited(source: BinaryIO, target: Path, max_bytes: int) -> int:
     except Exception:
         target.unlink(missing_ok=True)
         raise
+
+
+def _ai_status_from_insight(insight: dict, settings: Settings) -> dict:
+    if insight.get("ai_error") or not insight.get("model"):
+        return {
+            "provider": "fallback",
+            "status": "fallback",
+            "fallback_used": True,
+            "reason": insight.get("ai_error") or "; ".join(insight.get("limitations") or []),
+        }
+    return {
+        "provider": "nvidia",
+        "model": insight.get("model") or settings.nemotron_model,
+        "status": "success",
+        "fallback_used": False,
+    }

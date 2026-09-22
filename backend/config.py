@@ -46,6 +46,8 @@ class Settings:
     vision_confidence: float
     vision_video_loop: bool
     api_token: str | None = None
+    vision_model: str = "yolo11n.pt"
+    vision_input_size: int = 960
     vision_full_scan_seconds: float = 6.0
     vision_tracker_lost_buffer: int = 30
     machine_active_seconds: float = 3.0
@@ -72,6 +74,13 @@ class Settings:
     video_max_upload_mb: int = 250
     video_analysis_fps: float = 2.0
     video_temporary_retention_hours: float = 24.0
+    video_debug_overlay: bool = False
+    movement_threshold: float = 0.025
+    stationary_threshold_seconds: float = 30.0
+    long_presence_threshold_seconds: float = 600.0
+    zone_idle_threshold_seconds: float = 300.0
+    crowding_threshold: int = 8
+    line_crossing_cooldown_seconds: float = 8.0
 
     def __post_init__(self) -> None:
         if self.camera_reconnect_seconds < 0:
@@ -88,6 +97,8 @@ class Settings:
             raise ValueError("VISION_FPS must be greater than zero.")
         if not 0.0 <= self.vision_confidence <= 1.0:
             raise ValueError("VISION_CONFIDENCE must be between 0 and 1.")
+        if self.vision_input_size < 320:
+            raise ValueError("VISION_INPUT_SIZE must be at least 320.")
         if self.vision_full_scan_seconds <= 0:
             raise ValueError("VISION_FULL_SCAN_SECONDS must be greater than zero.")
         if self.vision_tracker_lost_buffer < 1:
@@ -118,6 +129,18 @@ class Settings:
             raise ValueError("VIDEO_ANALYSIS_FPS must be greater than zero.")
         if self.video_temporary_retention_hours <= 0:
             raise ValueError("VIDEO_TEMPORARY_RETENTION_HOURS must be greater than zero.")
+        if self.movement_threshold <= 0:
+            raise ValueError("MOVEMENT_THRESHOLD must be greater than zero.")
+        if self.stationary_threshold_seconds <= 0:
+            raise ValueError("STATIONARY_THRESHOLD_SECONDS must be greater than zero.")
+        if self.long_presence_threshold_seconds <= 0:
+            raise ValueError("LONG_PRESENCE_THRESHOLD_SECONDS must be greater than zero.")
+        if self.zone_idle_threshold_seconds <= 0:
+            raise ValueError("ZONE_IDLE_THRESHOLD_SECONDS must be greater than zero.")
+        if self.crowding_threshold < 1:
+            raise ValueError("CROWDING_THRESHOLD must be at least 1.")
+        if self.line_crossing_cooldown_seconds < 0:
+            raise ValueError("LINE_CROSSING_COOLDOWN_SECONDS must be non-negative.")
 
     @property
     def sqlite_path(self) -> Path:
@@ -163,10 +186,17 @@ class Settings:
             ),
             vision_enabled=os.getenv("VISION_ENABLED", "true").lower()
             in {"1", "true", "yes", "on"},
-            vision_detector=os.getenv("VISION_DETECTOR", "rfdetr").lower(),
+            vision_detector=os.getenv("VISION_DETECTOR", "yolo").lower(),
+            vision_model=os.getenv("VISION_MODEL", "yolo11n.pt"),
             vision_device=os.getenv("VISION_DEVICE", "auto").lower(),
             vision_fps=float(os.getenv("VISION_FPS", "5")),
-            vision_confidence=float(os.getenv("VISION_CONFIDENCE", "0.50")),
+            vision_confidence=float(
+                os.getenv(
+                    "VISION_CONFIDENCE_THRESHOLD",
+                    os.getenv("VISION_CONFIDENCE", "0.35"),
+                )
+            ),
+            vision_input_size=int(os.getenv("VISION_INPUT_SIZE", "960")),
             vision_video_loop=os.getenv("VISION_VIDEO_LOOP", "true").lower()
             in {"1", "true", "yes", "on"},
             api_token=os.getenv("CAMPEX_API_TOKEN") or None,
@@ -210,9 +240,25 @@ class Settings:
             ),
             video_upload_dir=os.getenv("VIDEO_UPLOAD_DIR", "./storage/video_uploads"),
             video_max_upload_mb=int(os.getenv("VIDEO_MAX_UPLOAD_MB", "250")),
-            video_analysis_fps=float(os.getenv("VIDEO_ANALYSIS_FPS", "2")),
+            video_analysis_fps=float(os.getenv("VIDEO_ANALYSIS_FPS", "5")),
             video_temporary_retention_hours=float(
                 os.getenv("VIDEO_TEMPORARY_RETENTION_HOURS", "24")
+            ),
+            video_debug_overlay=os.getenv("VIDEO_DEBUG_OVERLAY", "false").lower()
+            in {"1", "true", "yes", "on"},
+            movement_threshold=float(os.getenv("MOVEMENT_THRESHOLD", "0.025")),
+            stationary_threshold_seconds=float(
+                os.getenv("STATIONARY_THRESHOLD_SECONDS", "30")
+            ),
+            long_presence_threshold_seconds=float(
+                os.getenv("LONG_PRESENCE_THRESHOLD_SECONDS", "600")
+            ),
+            zone_idle_threshold_seconds=float(
+                os.getenv("ZONE_IDLE_THRESHOLD_SECONDS", "300")
+            ),
+            crowding_threshold=int(os.getenv("CROWDING_THRESHOLD", "8")),
+            line_crossing_cooldown_seconds=float(
+                os.getenv("LINE_CROSSING_COOLDOWN_SECONDS", "8")
             ),
         )
 
