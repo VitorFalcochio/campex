@@ -12,8 +12,11 @@ from fastapi import UploadFile
 from backend.config import ROOT_DIR, Settings
 from backend.integrations.nemotron import NemotronClient
 from backend.services.intelligence.exceptions import IntelligenceError
-from backend.services.intelligence.models import IntelligenceRequest
-from backend.services.intelligence.service import CampexIntelligenceService
+from backend.services.intelligence.service import (
+    CampexIntelligenceService,
+    build_deterministic_report,
+    normalize_operational_context,
+)
 from backend.vision.detector import create_detector
 from backend.vision.detector import VisionDetector
 from backend.videos.models import AnalysisJob, AnalysisStatus
@@ -142,26 +145,21 @@ class VideoAnalysisService:
             "limitations": ["Nemotron indisponível ou não configurado."],
         }
         try:
-            response = CampexIntelligenceService(NemotronClient(self.settings)).ask(
-                IntelligenceRequest(
-                    organization_id=organization_id,
-                    query=(
-                        "Return a concise operational analysis in Portuguese. "
-                        "Separate observed facts, calculated metrics, interpretation, and attention points."
-                    ),
-                    context=context,
-                )
+            report = CampexIntelligenceService(NemotronClient(self.settings)).generate_operational_report(
+                organization_id=organization_id,
+                data=context,
             )
         except IntelligenceError as exc:
-            fallback["ai_error"] = str(exc)
-            return fallback
+            report = build_deterministic_report(
+                normalize_operational_context(organization_id, context),
+                reason=str(exc),
+            )
         return {
-            "summary": response.answer,
+            **report.as_dict(),
             "observations": [],
             "attention_points": [],
             "metrics_highlights": [],
-            "limitations": response.limitations,
-            "model": response.model,
+            "limitations": [report.reason] if report.reason else [],
         }
 
 
@@ -199,12 +197,12 @@ def _copy_limited(source: BinaryIO, target: Path, max_bytes: int) -> int:
 
 
 def _ai_status_from_insight(insight: dict, settings: Settings) -> dict:
-    if insight.get("ai_error") or not insight.get("model"):
+    if insight.get("fallback_used") or insight.get("provider") == "fallback" or not insight.get("model"):
         return {
             "provider": "fallback",
             "status": "fallback",
             "fallback_used": True,
-            "reason": insight.get("ai_error") or "; ".join(insight.get("limitations") or []),
+            "reason": insight.get("reason") or insight.get("ai_error") or "; ".join(insight.get("limitations") or []),
         }
     return {
         "provider": "nvidia",

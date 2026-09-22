@@ -24,8 +24,10 @@ from backend.vision.detector import (
     DetectorUnavailable,
     RFDETRDetector,
     VisionDetector,
+    YOLODetector,
     create_detector,
     normalize_rfdetr_result,
+    normalize_yolo_result,
 )
 from backend.vision.engine import VisionEngine, VisionSession
 from backend.vision.models import BoundingBox, Detection, TrackedObject, VisionMetrics
@@ -128,6 +130,16 @@ class RawDetections:
     class_name = ["person", "car"]
 
 
+class YoloBoxes:
+    xyxy = np.array([[10, 20, 110, 220], [200, 200, 400, 400]], dtype=np.float32)
+    conf = np.array([0.91, 0.99], dtype=np.float32)
+    cls = np.array([0, 2], dtype=np.float32)
+
+
+class YoloResult:
+    boxes = YoloBoxes()
+
+
 def _make_session(
     camera_id: str = "cam_1",
     settings: Settings | None = None,
@@ -202,6 +214,33 @@ def test_normalize_rfdetr_result_empty_result():
     raw = SupervisionLikeDetection(xyxy=[], confidence=[], class_id=[])
     detections = normalize_rfdetr_result(raw, confidence_threshold=0.5)
     assert detections == []
+
+
+def test_normalize_yolo_result_filters_to_person_class():
+    detections = normalize_yolo_result([YoloResult()], confidence_threshold=0.35)
+
+    assert len(detections) == 1
+    assert detections[0].class_name == "person"
+    assert detections[0].confidence == 0.91
+    assert detections[0].bounding_box.as_list() == [10.0, 20.0, 110.0, 220.0]
+
+
+def test_yolo_detector_fallback_reason_when_load_fails(monkeypatch, tmp_path):
+    settings = make_settings(tmp_path / "yolo-fallback.sqlite3")
+    detector = YOLODetector(settings)
+
+    def fail_load():
+        detector._load_error = "ultralytics import failed"
+        fallback = RFDETRDetector(settings)
+        fallback._load_hog_fallback()
+        detector._fallback = fallback
+
+    monkeypatch.setattr(detector, "_do_load", fail_load)
+
+    detector.load()
+
+    assert detector.fallback_used is True
+    assert detector.fallback_reason == "ultralytics import failed"
 
 
 def test_normalize_rfdetr_result_handles_missing_confidence():

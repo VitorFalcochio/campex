@@ -173,6 +173,7 @@ class VideoAnalysisPipeline:
                 "model": getattr(self.detector, "model_name", None),
                 "device": self.detector.device.lower(),
                 "fallback": bool(getattr(self.detector, "fallback_used", False)),
+                "reason": getattr(self.detector, "fallback_reason", None),
                 "tracker": self.tracker.name,
                 "analysis_fps": self.settings.video_analysis_fps,
                 "original_fps": metadata.fps,

@@ -135,6 +135,45 @@ SCHEMA_STATEMENTS = (
         completed_at TEXT
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS notification_preferences (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL UNIQUE,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        telegram_enabled INTEGER NOT NULL DEFAULT 0,
+        telegram_chat_id TEXT,
+        email_enabled INTEGER NOT NULL DEFAULT 0,
+        email_recipients TEXT NOT NULL DEFAULT '[]',
+        reports_enabled INTEGER NOT NULL DEFAULT 0,
+        report_frequency TEXT NOT NULL DEFAULT 'DAILY'
+            CHECK(report_frequency IN ('DAILY', 'WEEKLY', 'MONTHLY')),
+        report_time TEXT NOT NULL DEFAULT '18:00',
+        report_weekday INTEGER NOT NULL DEFAULT 4,
+        report_month_day INTEGER NOT NULL DEFAULT 0,
+        timezone TEXT NOT NULL DEFAULT 'America/Sao_Paulo',
+        immediate_alerts_enabled INTEGER NOT NULL DEFAULT 1,
+        alert_types TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS notification_deliveries (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        channel TEXT NOT NULL CHECK(channel IN ('telegram', 'email')),
+        type TEXT NOT NULL CHECK(type IN ('ALERT', 'REPORT', 'TEST')),
+        reference_id TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('pending', 'sent', 'failed', 'skipped')),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        error TEXT,
+        metadata TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        sent_at TEXT,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
     "CREATE INDEX IF NOT EXISTS idx_zones_camera ON zones(camera_id)",
     "CREATE INDEX IF NOT EXISTS idx_events_camera_started ON events(camera_id, started_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_events_zone_started ON events(zone_id, started_at DESC)",
@@ -143,6 +182,8 @@ SCHEMA_STATEMENTS = (
     "CREATE INDEX IF NOT EXISTS idx_visual_rules_enabled ON visual_rules(enabled, updated_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_machines_camera ON machines(camera_id)",
     "CREATE INDEX IF NOT EXISTS idx_video_analyses_org_created ON video_analyses(organization_id, created_at DESC)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_delivery_idempotency ON notification_deliveries(organization_id, channel, type, reference_id, recipient)",
+    "CREATE INDEX IF NOT EXISTS idx_notification_delivery_org_created ON notification_deliveries(organization_id, created_at DESC)",
 )
 
 

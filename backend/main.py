@@ -13,6 +13,7 @@ from backend.api.analysis import router as analysis_router
 from backend.api.health import router as health_router
 from backend.api.intelligence import router as intelligence_router
 from backend.api.machines import router as machines_router
+from backend.api.notifications import router as notifications_router
 from backend.api.operations import router as operations_router
 from backend.api.vision import router as vision_router
 from backend.api.videos import router as videos_router
@@ -75,7 +76,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=startup_settings.frontend_origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
@@ -114,6 +115,7 @@ app.include_router(machines_router)
 app.include_router(events_router)
 app.include_router(operations_router)
 app.include_router(intelligence_router)
+app.include_router(notifications_router)
 
 
 def _warn_security_posture(settings) -> None:

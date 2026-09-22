@@ -29,6 +29,7 @@
   getVisionObjects,
   getVisionStatus,
   getVideoAnalysisStatus,
+  getNotificationPreferences,
   listEvents,
   listEvidence,
   listInvestigations,
@@ -37,6 +38,7 @@
   listCameras,
   listZones,
   listVideoAnalyses,
+  sendNotificationReportNow,
   operationsStreamUrl,
   restartVision,
   setupDemo,
@@ -47,12 +49,15 @@
   simulateRule as simulateRuleRequest,
   testCamera,
   testCameraSource,
+  testEmailNotification,
+  testTelegramNotification,
   updateCamera,
   updateEvent,
   updateInvestigation,
   updateMachine,
   updateRule,
   updateZone,
+  updateNotificationPreferences,
   debugVideoUrl,
   uploadedVideoUrl,
 } from "./api.js";
@@ -685,8 +690,12 @@ function renderVideoAnalysis(analysis) {
       )).join("")
     : emptyState("Sem tracks", "O tracker ainda não confirmou objetos.");
   const insight = analysis.insight || {};
+  const insightSections = Object.entries(insight.sections || {})
+    .map(([label, text]) => objectLine(label, text, ""))
+    .join("");
+  const aiLabel = ai.fallback_used ? "IA: Fallback local" : (ai.model ? "IA: Nemotron" : "IA: pendente");
   document.querySelector("#video-analysis-insight").innerHTML = insight.summary
-    ? objectLine("Resumo da operação", insight.summary, (insight.limitations || []).join(" "))
+    ? objectLine("Análise CAMPEX", insight.summary, aiLabel) + insightSections
     : emptyState("Aguardando inteligência", "O Nemotron é chamado ao final com métricas agregadas.");
   refreshIcons();
 }
@@ -3037,11 +3046,47 @@ async function renderSettingsPage() {
           </form>
         </aside>
       </section>
+      <section class="ops-panel">
+        <div class="section-heading">
+          <h2>Notificações e relatórios</h2>
+          <button type="button" id="notification-report-now">Enviar relatório agora</button>
+        </div>
+        <form id="notification-settings-form" class="stack-form">
+          <label class="inline-toggle"><input name="telegram_enabled" type="checkbox" /> Telegram</label>
+          <label>Chat IDs<input name="telegram_chat_id" placeholder="123456789, -1001234567890" /></label>
+          <button type="button" id="notification-test-telegram">Testar Telegram</button>
+          <label class="inline-toggle"><input name="email_enabled" type="checkbox" /> E-mail</label>
+          <label>Destinatários<input name="email_recipients" placeholder="gestor@empresa.com, financeiro@empresa.com" /></label>
+          <button type="button" id="notification-test-email">Testar E-mail</button>
+          <label class="inline-toggle"><input name="reports_enabled" type="checkbox" /> Relatórios automáticos</label>
+          <label>Frequência
+            <select name="report_frequency">
+              <option value="DAILY">Diário</option>
+              <option value="WEEKLY">Semanal</option>
+              <option value="MONTHLY">Mensal</option>
+            </select>
+          </label>
+          <label>Horário<input name="report_time" type="time" value="18:00" /></label>
+          <label>Timezone<input name="timezone" value="America/Sao_Paulo" /></label>
+          <label class="inline-toggle"><input name="immediate_alerts_enabled" type="checkbox" /> Alertas imediatos</label>
+          <label class="inline-toggle"><input name="camera_offline" type="checkbox" /> Câmera offline</label>
+          <label class="inline-toggle"><input name="zone_idle" type="checkbox" /> Área sem atividade</label>
+          <label class="inline-toggle"><input name="crowding_started" type="checkbox" /> Aglomeração</label>
+          <label class="inline-toggle"><input name="long_presence" type="checkbox" /> Permanência prolongada</label>
+          <button type="submit">Salvar notificações</button>
+        </form>
+        <div id="notification-settings-status" class="object-list"></div>
+      </section>
     </div>
   `;
   document.querySelector("#settings-refresh").addEventListener("click", loadSettings);
   document.querySelector("#local-settings-form").addEventListener("submit", saveLocalSettings);
+  document.querySelector("#notification-settings-form").addEventListener("submit", saveNotificationSettings);
+  document.querySelector("#notification-test-telegram").addEventListener("click", testTelegramSettings);
+  document.querySelector("#notification-test-email").addEventListener("click", testEmailSettings);
+  document.querySelector("#notification-report-now").addEventListener("click", sendReportNow);
   fillLocalSettings();
+  await loadNotificationSettings();
   await loadSettings();
 }
 
@@ -3064,6 +3109,83 @@ async function loadSettings() {
     ].join("");
   } catch (error) {
     host.innerHTML = emptyState("Falha ao carregar configurações", error.message);
+  }
+}
+
+async function loadNotificationSettings() {
+  const form = document.querySelector("#notification-settings-form");
+  const status = document.querySelector("#notification-settings-status");
+  try {
+    const prefs = await getNotificationPreferences();
+    form.elements.telegram_enabled.checked = Boolean(prefs.telegram_enabled);
+    form.elements.telegram_chat_id.value = prefs.telegram_chat_id || "";
+    form.elements.email_enabled.checked = Boolean(prefs.email_enabled);
+    form.elements.email_recipients.value = (prefs.email_recipients || []).join(", ");
+    form.elements.reports_enabled.checked = Boolean(prefs.reports_enabled);
+    form.elements.report_frequency.value = prefs.report_frequency || "DAILY";
+    form.elements.report_time.value = prefs.report_time || "18:00";
+    form.elements.timezone.value = prefs.timezone || "America/Sao_Paulo";
+    form.elements.immediate_alerts_enabled.checked = Boolean(prefs.immediate_alerts_enabled);
+    const types = new Set(prefs.alert_types || []);
+    ["camera_offline", "zone_idle", "crowding_started", "long_presence"].forEach((name) => {
+      form.elements[name].checked = types.has(name);
+    });
+    status.innerHTML = [
+      objectLine("Telegram", prefs.telegram_configured ? "Configurado" : "Token ausente", prefs.telegram_enabled ? "Ativo" : "Inativo"),
+      objectLine("E-mail", prefs.email_configured ? "Configurado" : "SMTP ausente", prefs.email_enabled ? "Ativo" : "Inativo"),
+    ].join("");
+  } catch (error) {
+    status.innerHTML = emptyState("Falha ao carregar notificações", error.message);
+  }
+}
+
+async function saveNotificationSettings(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const alertTypes = ["camera_offline", "zone_idle", "crowding_started", "long_presence"]
+    .filter((name) => form.elements[name].checked);
+  const payload = {
+    enabled: true,
+    telegram_enabled: form.elements.telegram_enabled.checked,
+    telegram_chat_id: form.elements.telegram_chat_id.value.trim() || null,
+    email_enabled: form.elements.email_enabled.checked,
+    email_recipients: form.elements.email_recipients.value.split(",").map((item) => item.trim()).filter(Boolean),
+    reports_enabled: form.elements.reports_enabled.checked,
+    report_frequency: form.elements.report_frequency.value,
+    report_time: form.elements.report_time.value || "18:00",
+    timezone: form.elements.timezone.value || "America/Sao_Paulo",
+    immediate_alerts_enabled: form.elements.immediate_alerts_enabled.checked,
+    alert_types: alertTypes,
+  };
+  await updateNotificationPreferences(payload);
+  notify("Notificações salvas", "Preferências de entrega atualizadas.", "success");
+  await loadNotificationSettings();
+}
+
+async function testTelegramSettings() {
+  try {
+    await testTelegramNotification();
+    notify("Telegram testado", "Mensagem de teste enviada.", "success");
+  } catch (error) {
+    notify("Falha no Telegram", error.message, "error");
+  }
+}
+
+async function testEmailSettings() {
+  try {
+    await testEmailNotification();
+    notify("E-mail testado", "Mensagem de teste enviada.", "success");
+  } catch (error) {
+    notify("Falha no e-mail", error.message, "error");
+  }
+}
+
+async function sendReportNow() {
+  try {
+    const result = await sendNotificationReportNow();
+    notify("Relatório solicitado", JSON.stringify(result.channels || {}), "success");
+  } catch (error) {
+    notify("Falha ao enviar relatório", error.message, "error");
   }
 }
 

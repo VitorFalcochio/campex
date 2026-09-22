@@ -38,7 +38,10 @@ class FakeNemotronClient:
         pass
 
     def chat(self, messages):
-        return "Foi observada uma pessoa no vídeo analisado."
+        return (
+            '{"summary":"Foi observada uma pessoa no video analisado.",'
+            '"sections":{"flow":"Foi observada uma pessoa no video analisado."}}'
+        )
 
 
 def test_video_analysis_upload_status_and_completion(monkeypatch, tmp_path):
@@ -70,7 +73,10 @@ def test_video_analysis_upload_status_and_completion(monkeypatch, tmp_path):
     assert payload["source"]["duration_seconds"] > 0
     assert payload["metrics"]["summary"]["unique_people"] >= 1
     assert payload["events"]
-    assert payload["insight"]["summary"] == "Foi observada uma pessoa no vídeo analisado."
+    assert payload["insight"]["summary"] == "Foi observada uma pessoa no video analisado."
+    assert payload["insight"]["sections"]["flow"] == "Foi observada uma pessoa no video analisado."
+    assert payload["ai"]["provider"] == "nvidia"
+    assert payload["ai"]["fallback_used"] is False
 
 
 def test_video_analysis_rejects_invalid_extension(monkeypatch, tmp_path):

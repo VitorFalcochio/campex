@@ -6,8 +6,11 @@ from typing import Any
 from backend.config import get_settings
 from backend.integrations.nemotron import NemotronClient
 from backend.services.intelligence.exceptions import IntelligenceError
-from backend.services.intelligence.models import IntelligenceRequest
-from backend.services.intelligence.service import CampexIntelligenceService
+from backend.services.intelligence.service import (
+    CampexIntelligenceService,
+    build_deterministic_report,
+    normalize_operational_context,
+)
 
 
 logger = logging.getLogger("campex.nemotron")
@@ -25,66 +28,40 @@ Quando nao houver dados suficientes, diga explicitamente que nao ha dados sufici
 
 
 def analyze_events(events: list[dict[str, Any]]) -> dict[str, Any]:
-    return _ask("Analise os eventos operacionais CAMPEX fornecidos.", {"events": events})
+    return _report({"events": events})
 
 
 def generate_operational_summary(metrics: dict[str, Any]) -> dict[str, Any]:
-    return _ask("Gere um resumo operacional objetivo a partir das metricas.", {"metrics": metrics})
+    return _report({"metrics": metrics})
 
 
 def analyze_anomalies(events: list[dict[str, Any]], metrics: dict[str, Any]) -> dict[str, Any]:
-    return _ask(
-        "Identifique apenas anomalias sustentadas pelos dados estruturados.",
-        {"events": events, "metrics": metrics},
-    )
+    return _report({"events": events, "metrics": metrics})
 
 
 def generate_daily_report(data: dict[str, Any]) -> dict[str, Any]:
-    return _ask(
-        "Gere um relatorio operacional CAMPEX com resumo, movimentacao, entradas, saidas, permanencia, tempo sem deslocamento, zonas, eventos relevantes e observacoes.",
-        data,
-    )
+    return _report(data)
 
 
 def generate_alert(event: dict[str, Any]) -> dict[str, Any]:
-    return _ask("Gere um alerta operacional curto para este evento observado.", {"event": event})
+    return _report({"events": [event]})
 
 
-def _ask(query: str, context: dict[str, Any]) -> dict[str, Any]:
+def _report(data: dict[str, Any]) -> dict[str, Any]:
     settings = get_settings()
+    context = normalize_operational_context(settings.intelligence_default_organization_id, data)
     if not settings.nvidia_api_key or not settings.intelligence_enabled:
-        return _fallback("Nemotron indisponivel ou NVIDIA_API_KEY ausente.")
+        return build_deterministic_report(
+            context,
+            "Nemotron indisponivel ou NVIDIA_API_KEY ausente.",
+        ).as_dict()
 
-    service = CampexIntelligenceService(NemotronClient(settings))
     try:
-        response = service.ask(
-            IntelligenceRequest(
-                organization_id=settings.intelligence_default_organization_id,
-                query=f"{SYSTEM_GUIDANCE}\n\n{query}",
-                context=context,
-            )
-        )
+        return CampexIntelligenceService(NemotronClient(settings)).generate_operational_report(
+            organization_id=settings.intelligence_default_organization_id,
+            data=data,
+        ).as_dict()
     except IntelligenceError as exc:
-        logger.warning("[CAMPEX][NEMOTRON] unavailable: %s", exc)
-        return _fallback(str(exc))
-    except Exception as exc:
-        logger.exception("[CAMPEX][NEMOTRON] unexpected failure")
-        return _fallback("Falha inesperada ao consultar o Nemotron.")
+        logger.warning("[CAMPEX][NEMOTRON] fallback activated: %s", exc)
+        return build_deterministic_report(context, str(exc)).as_dict()
 
-    return {
-        "available": True,
-        "summary": response.answer,
-        "model": response.model,
-        "limitations": response.limitations,
-        "fallback": False,
-    }
-
-
-def _fallback(reason: str) -> dict[str, Any]:
-    return {
-        "available": False,
-        "summary": "Analise operacional por IA indisponivel. O processamento de video continua ativo com eventos e metricas deterministicas.",
-        "model": None,
-        "limitations": [reason],
-        "fallback": True,
-    }

@@ -8,6 +8,28 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
+def _load_dotenv() -> None:
+    env_path = ROOT_DIR / ".env"
+    if not env_path.exists():
+        return
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        item = line.strip()
+        if not item or item.startswith("#") or "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        os.environ[key] = value.strip().strip('"').strip("'")
+
+
+_load_dotenv()
+
+
 def _env_list(name: str, default: str) -> list[str]:
     raw_value = os.getenv(name, default)
     return [item.strip() for item in raw_value.split(",") if item.strip()]
@@ -66,6 +88,14 @@ class Settings:
     nemotron_temperature: float = 0.2
     nemotron_top_p: float = 0.7
     nemotron_max_tokens: int = 700
+    telegram_bot_token: str | None = None
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_from_name: str = "CAMPEX"
+    smtp_use_tls: bool = True
     rate_limit_enabled: bool = True
     rate_limit_requests: int = 6000
     rate_limit_window_seconds: float = 60.0
@@ -232,6 +262,15 @@ class Settings:
             nemotron_temperature=float(os.getenv("NEMOTRON_TEMPERATURE", "0.2")),
             nemotron_top_p=float(os.getenv("NEMOTRON_TOP_P", "0.7")),
             nemotron_max_tokens=int(os.getenv("NEMOTRON_MAX_TOKENS", "700")),
+            telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN") or None,
+            smtp_host=os.getenv("SMTP_HOST") or None,
+            smtp_port=int(os.getenv("SMTP_PORT", "587")),
+            smtp_username=os.getenv("SMTP_USERNAME") or None,
+            smtp_password=os.getenv("SMTP_PASSWORD") or None,
+            smtp_from_email=os.getenv("SMTP_FROM_EMAIL") or None,
+            smtp_from_name=os.getenv("SMTP_FROM_NAME", "CAMPEX"),
+            smtp_use_tls=os.getenv("SMTP_USE_TLS", "true").lower()
+            in {"1", "true", "yes", "on"},
             rate_limit_enabled=os.getenv("CAMPEX_RATE_LIMIT_ENABLED", "true").lower()
             in {"1", "true", "yes", "on"},
             rate_limit_requests=int(os.getenv("CAMPEX_RATE_LIMIT_REQUESTS", "6000")),

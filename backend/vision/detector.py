@@ -67,6 +67,10 @@ class VisionDetector(ABC):
         return False
 
     @property
+    def fallback_reason(self) -> str | None:
+        return None
+
+    @property
     def model_name(self) -> str | None:
         return None
 
@@ -115,6 +119,10 @@ class RFDETRDetector(VisionDetector):
     @property
     def fallback_used(self) -> bool:
         return self._hog is not None
+
+    @property
+    def fallback_reason(self) -> str | None:
+        return "RF-DETR unavailable; using OpenCV HOG" if self._hog is not None else None
 
     def load(self) -> None:
         if self._model is not None or self._hog is not None:
@@ -253,6 +261,14 @@ class YOLODetector(VisionDetector):
         return self._fallback is not None
 
     @property
+    def fallback_reason(self) -> str | None:
+        if self._load_error:
+            return self._load_error
+        if self._fallback is not None:
+            return getattr(self._fallback, "fallback_reason", None)
+        return None
+
+    @property
     def model_name(self) -> str | None:
         if self._fallback is not None:
             return self._fallback.model_name
@@ -322,6 +338,7 @@ class YOLODetector(VisionDetector):
                 verbose=False,
             )
         except Exception as exc:
+            self._load_error = str(exc)
             logger.warning(
                 "[CAMPEX][VISION] YOLO inference failed; activating fallback: %s",
                 exc,

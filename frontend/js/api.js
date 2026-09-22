@@ -393,3 +393,30 @@ export function uploadedVideoUrl(analysisId) {
 export function debugVideoUrl(analysisId) {
   return `${API_BASE_URL}/videos/${analysisId}/debug-video`;
 }
+
+export function getNotificationPreferences() {
+  return requestJson("/notifications/preferences");
+}
+
+export function updateNotificationPreferences(payload) {
+  return requestJson("/notifications/preferences", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function testTelegramNotification() {
+  return requestJson("/notifications/test/telegram", { method: "POST" });
+}
+
+export function testEmailNotification() {
+  return requestJson("/notifications/test/email", { method: "POST" });
+}
+
+export function sendNotificationReportNow() {
+  return requestJson("/notifications/send-report", { method: "POST" });
+}
+
+export function listNotificationDeliveries() {
+  return requestJson("/notifications/deliveries");
+}

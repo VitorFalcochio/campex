@@ -11,7 +11,10 @@ from backend.database.db import connect, initialize_database
 from backend.main import app
 from backend.services.intelligence.context import build_intelligence_context
 from backend.services.intelligence.exceptions import (
+    IntelligenceInvalidResponseError,
+    IntelligenceNotConfiguredError,
     IntelligenceProviderUnavailableError,
+    IntelligenceRateLimitError,
     IntelligenceTimeoutError,
 )
 from backend.services.intelligence.models import (
@@ -41,6 +44,26 @@ class TimeoutClient(FakeNemotronClient):
 class UnavailableClient(FakeNemotronClient):
     def chat(self, messages):
         raise IntelligenceProviderUnavailableError("unavailable")
+
+
+class EmptyClient(FakeNemotronClient):
+    def chat(self, messages):
+        return ""
+
+
+class InvalidJsonClient(FakeNemotronClient):
+    def chat(self, messages):
+        return "CAMPEX - relatorio sem JSON"
+
+
+class RateLimitClient(FakeNemotronClient):
+    def chat(self, messages):
+        raise IntelligenceRateLimitError("rate limit")
+
+
+class NotConfiguredClient(FakeNemotronClient):
+    def chat(self, messages):
+        raise IntelligenceNotConfiguredError("NVIDIA_API_KEY is not configured.")
 
 
 def test_service_answers_with_structured_context_only():
@@ -105,6 +128,104 @@ def test_service_surfaces_timeout_and_unavailable_errors():
         CampexIntelligenceService(TimeoutClient()).ask(request)
     with pytest.raises(IntelligenceProviderUnavailableError):
         CampexIntelligenceService(UnavailableClient()).ask(request)
+
+
+def test_operational_report_success_returns_structured_payload():
+    service = CampexIntelligenceService(
+        FakeNemotronClient(
+            '{"summary":"Foram detectados 30 tracks, com pico de 15 pessoas simultaneamente.",'
+            '"sections":{"flow":"Entradas: 30; saidas: 30.","movement":"Movimento: 152.8 segundos."}}'
+        )
+    )
+
+    report = service.generate_operational_report(
+        organization_id="org_a",
+        data=_palace_metrics(),
+    ).as_dict()
+
+    assert report["provider"] == "nvidia"
+    assert report["model"] == "fake-nemotron"
+    assert report["status"] == "success"
+    assert report["fallback_used"] is False
+    assert "30" in report["summary"]
+    assert "15" in report["summary"]
+    assert report["sections"]["movement"] == "Movimento: 152.8 segundos."
+
+
+def test_operational_report_extracts_json_after_provider_preamble():
+    service = CampexIntelligenceService(
+        FakeNemotronClient(
+            'Texto antes do JSON. {"summary":"Foram detectados 30 tracks.",'
+            '"sections":{"flow":"Pico de 15 pessoas simultaneamente."}}'
+        )
+    )
+
+    report = service.generate_operational_report(
+        organization_id="org_a",
+        data=_palace_metrics(),
+    ).as_dict()
+
+    assert report["provider"] == "nvidia"
+    assert report["fallback_used"] is False
+    assert report["summary"] == "Foram detectados 30 tracks."
+
+
+@pytest.mark.parametrize(
+    "client,reason",
+    [
+        (NotConfiguredClient(), "NVIDIA_API_KEY"),
+        (TimeoutClient(), "timeout"),
+        (RateLimitClient(), "rate limit"),
+        (InvalidJsonClient(), "invalid JSON"),
+        (EmptyClient(), "invalid JSON"),
+    ],
+)
+def test_operational_report_falls_back_for_provider_failures(client, reason):
+    report = CampexIntelligenceService(client).generate_operational_report(
+        organization_id="org_a",
+        data=_palace_metrics(),
+    ).as_dict()
+
+    assert report["provider"] == "fallback"
+    assert report["status"] == "fallback"
+    assert report["fallback_used"] is True
+    assert "30 tracks" in report["summary"]
+    assert "15 pessoas" in report["summary"]
+    assert reason.lower().split()[0] in report["reason"].lower()
+
+
+def test_operational_report_prompt_does_not_invite_hallucination():
+    client = FakeNemotronClient(
+        '{"summary":"Foram detectados 5 tracks, com pico de 3 pessoas simultaneamente.",'
+        '"sections":{"flow":"Nao ha dados suficientes para determinar setor, causa ou produtividade."}}'
+    )
+    service = CampexIntelligenceService(client)
+
+    report = service.generate_operational_report(
+        organization_id="org_a",
+        data={
+            "metrics": {
+                "people": {"detected": 5, "max_simultaneous": 3},
+                "activity": {"stationary_events": 0},
+            }
+        },
+    ).as_dict()
+
+    serialized_messages = json.dumps(client.messages, ensure_ascii=False)
+    assert "Nunca invente causas" in serialized_messages
+    assert "Nao recalcule metricas" in serialized_messages
+    forbidden = ["producao", "funcionarios", "maquina parada", "queda de produtividade"]
+    assert all(term not in report["summary"].lower() for term in forbidden)
+
+
+def test_nemotron_client_requires_api_key(tmp_path):
+    from backend.integrations.nemotron import NemotronClient
+
+    settings = _settings(tmp_path / "no-key.sqlite3")
+    settings = Settings(**{**settings.__dict__, "nvidia_api_key": None})
+
+    with pytest.raises(IntelligenceNotConfiguredError):
+        NemotronClient(settings).chat([{"role": "user", "content": "status"}])
 
 
 def test_context_builder_filters_by_organization(tmp_path):
@@ -241,6 +362,37 @@ def _settings(database_path):
         intelligence_default_organization_id="org_a",
         nvidia_api_key="test-key",
     )
+
+
+def _palace_metrics():
+    return {
+        "metrics": {
+            "people": {
+                "detected": 30,
+                "entries": 30,
+                "exits": 30,
+                "max_simultaneous": 15,
+            },
+            "summary": {
+                "unique_people": 30,
+                "max_simultaneous": 15,
+                "total_events": 118,
+            },
+            "activity": {
+                "moving_seconds": 152.8,
+                "stationary_seconds": 0,
+                "stationary_events": 0,
+            },
+            "zones": {},
+        },
+        "events": [
+            {
+                "event_type": "person_detected",
+                "track_id": 1,
+                "started_at": "2026-09-22T12:00:00+00:00",
+            }
+        ],
+    }
 
 
 def _seed_camera(settings, camera_id: str, organization_id: str, status: str) -> None:

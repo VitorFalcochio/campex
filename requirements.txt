@@ -4,6 +4,8 @@ pytest==8.4.1
 httpx==0.28.1
 python-multipart==0.0.20
 opencv-python-headless==4.12.0.88
+opencv-python==4.12.0.88
+openai==2.8.1
 rfdetr==1.10.1
 supervision==0.30.2
 trackers==2.6.0
