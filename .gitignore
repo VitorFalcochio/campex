@@ -24,6 +24,8 @@ storage/evidence/*
 !storage/evidence/.gitkeep
 storage/video_uploads/*
 !storage/video_uploads/.gitkeep
+storage/video_debug/*
+!storage/video_debug/.gitkeep
 
 .DS_Store
 Thumbs.db
